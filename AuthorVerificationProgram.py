@@ -1,164 +1,89 @@
-import os
-import tkinter as tk
-
 import openpyxl
-from openpyxl.styles import Alignment, PatternFill
-from openpyxl.utils import get_column_letter
+import os
 
+from CNCFileCheckingProgram import today
+from Config import outputFileDef
 
-class ExcelPrint:
-    def __init__(self, filename="results.xlsx", sheet_counterd: int = 0):
-        self.filename = filename
-        self.wb = openpyxl.Workbook()
-        self.sheet_counter = sheet_counterd
+# Параметры
+def main(excel_file):
+    search_column_title = "Содержимое"  # Заголовок столбца с именами файлов
+    path_column_title = "Путь"  # Заголовок столбца с полными путями
+    result_column_title = "Автор"  # Заголовок для нового столбца с результатами
+    file_extensions = [".nc", ".NC", ".h", ".H"]  # Поддерживаемые расширения
+    search_fragment = "AVTOR"  # Фрагмент строки для поиска
+    ignored_sheet = "ДСЕ по станкам"  # Лист, который нужно пропустить
 
-    def sort_files_by_name(self, files_url1: list, files_url2: list):
+    # Открываем Excel-файл
+    wb = openpyxl.load_workbook(excel_file)
+    sheets_to_process = [sheet for sheet in wb.sheetnames if sheet != ignored_sheet]
 
-        # Сортирует файлы по имени и объединяет строки с одинаковыми именами.
-        # Возвращает два списка: для левой части (url1) и правой (url2).
+    for sheet_name in sheets_to_process:
+        ws = wb[sheet_name]
+        print(f"Обработка листа: {sheet_name}")
 
-        file_map = {}
+        # Находим номера столбцов по заголовкам
+        headers = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))  # Получаем первую строку (заголовки)
+        content_col, path_col, result_col = None, None, None
 
-        # Объединяем файлы по имени
-        for file_info in files_url1:
-            name = file_info["name"]
-            if name not in file_map:
-                file_map[name] = {"left": file_info, "right": None}
-            else:
-                file_map[name]["left"] = file_info  # можно оставить последнее или первое — зависит от задачи
+        for idx, header in enumerate(headers):
+            if header == search_column_title:
+                content_col = idx + 1  # Индексы в OpenPyXL начинаются с 1
+            elif header == path_column_title:
+                path_col = idx + 1
+            elif header == result_column_title:
+                result_col = idx + 1  # Если столбец уже существует
 
-        for file_info in files_url2:
-            name = file_info["name"]
-            if name not in file_map:
-                file_map[name] = {"left": None, "right": file_info}
-            else:
-                file_map[name]["right"] = file_info
+        # Если заголовок результата не найден — добавляем его
+        if result_col is None:
+            result_col = len(headers) + 1
+            ws.cell(row=1, column=result_col, value=result_column_title)
 
-        # Создаем списки для левой и правой частей
-        sorted_left = []
-        sorted_right = []
+        # Проверяем, что найдены все нужные столбцы
+        if not all([content_col, path_col]):
+            print(f"Столбцы '{search_column_title}' или '{path_column_title}' не найдены на листе '{sheet_name}'")
+            continue
 
-        for name, pair in file_map.items():
-            left_file = pair["left"]
-            right_file = pair["right"]
+        # Обрабатываем каждую строку
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):  # Начинаем со второй строки
+            file_name_cell = row[content_col - 1]
+            path_cell = row[path_col - 1]
 
-            sorted_left.append(left_file or {"name": "", "url": "", "last_modified": ""})
-            sorted_right.append(right_file or {"name": "", "url": "", "last_modified": ""})
+            if not (file_name_cell.value and path_cell.value):
+                continue  # Пропускаем пустые ячейки
 
-        return sorted_left, sorted_right
+            file_name = str(file_name_cell.value).strip()
+            full_path = str(path_cell.value).strip()
 
-    def auto_fit_columns(sheet):
-        for column_cells in sheet.columns:
-            max_length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
-            adjusted_width = (max_length)  # Немного увеличим для красоты
-            sheet.column_dimensions[get_column_letter(column_cells[0].column)].width = adjusted_width
+            # Проверяем расширение файла
+            if not any(file_name.endswith(ext) for ext in file_extensions):
+                continue
 
-    def add_sheet_for_number(self, sheeti, number: str, files_url1: list, files_url2: list, url1: str, url2: str,
-                             sheet_counter=0):
-        self.sheet_counter = sheet_counter
+            # Проверяем существование файла
+            if not os.path.exists(full_path):
+                print(f"Файл не существует: {full_path}")
+                continue
 
-        fill_color = PatternFill(start_color="d9d9d9", end_color="d9d9d9", fill_type="solid")
-        green_fill = PatternFill(start_color="0eec1d", end_color="0eec1d", fill_type="solid")
-        yellow_fill = PatternFill(start_color="f4b706", end_color="f4b706", fill_type="solid")
+            try:
+                with open(full_path, 'r') as f:
+                    for line in f:
+                        if search_fragment in line:
+                            avtor_line = line.strip()
+                            avtor_value = avtor_line.replace("AVTOR:", "").strip()
 
-        # Добавляет лист для указанного номера и записывает данные.
-        sheet_name = f"{number[:30]}"  # Ограничение длины названия листа
-        if sheet_name in self.wb.sheetnames:
-            sheet_name += f"{self.sheet_counter}"
-            self.sheet_counter += 1
+                            # Записываем результат в столбец "Автор"
+                            result_cell = row[result_col - 1]
+                            if avtor_value.find("(") > -1: avtor_value = avtor_value[avtor_value.find("("):]
+                            result_cell.value = avtor_value[2:][:-2]
+                            break
+            except Exception as e:
+                print(f"Ошибка при открытии файла {full_path}: {e}")
 
-        ws = self.wb.create_sheet(title=sheet_name)
+    # Сохраняем изменения
+    wb.save(excel_file)
+    print("Обработка завершена. Результаты записаны в исходный файл.")
 
-        # Удаление начального листа "Sheet", если он ещё не удалён
-        if "Sheet" in self.wb.sheetnames:
-            del self.wb["Sheet"]
-
-        # Ширина столбцов
-        for col in range(1, 7):  # 6 столбцов
-            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 30
-
-        # Первая строка: разделение на две части
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=2)
-        ws.cell(row=1, column=1, value=os.path.basename(url1)).alignment = Alignment(horizontal="center")
-
-        ws.merge_cells(start_row=1, start_column=6, end_row=1, end_column=7)
-        ws.cell(row=1, column=6, value=os.path.basename(url2)).alignment = Alignment(horizontal="center")
-
-        # Вторая строка: заголовки
-        headers = [
-            "Путь", "Дата изменения", "",
-            "Имя файла", "", "Дата изменения", "Путь"
-        ]
-        for idx, header in enumerate(headers, start=1):
-            cellU = ws.cell(row=2, column=idx, value=header)
-            cellU.fill = fill_color
-
-        # Сортировка и объединение
-        sorted_left, sorted_right = self.sort_files_by_name(files_url1, files_url2)
-
-        ws.column_dimensions['C'].fill = fill_color
-        ws.column_dimensions['E'].fill = fill_color
-        maxTimeFile = 0
-        maxTimeFileList = [0, 0]
-
-        # Заполнение данных
-        for i in range(len(sorted_left)):
-            row = i + 3  # начинаем с третьей строки
-
-            left_file = sorted_left[i]
-            right_file = sorted_right[i]
-
-            # Левая часть (url1)
-            ws.cell(row=row, column=1,
-                    value=left_file["url"].replace(url1, "").lstrip("\\")).hyperlink = os.path.dirname(left_file["url"])
-            cell_time_URL_1 = ws.cell(row=row, column=2, value=left_file["last_modified"])
-            ws.cell(row=row, column=4, value=left_file["name"])
-
-            # Правая часть (url2)
-            cell_vale_name = ws.cell(row=row, column=4, value=right_file["name"])
-            if cell_vale_name.value == "":
-                ws.cell(row=row, column=4, value=left_file["name"])
-            cell_time_URL_2 = ws.cell(row=row, column=6, value=right_file["last_modified"])
-            ws.cell(row=row, column=7,
-                    value=right_file["url"].replace(url2, "").lstrip("\\")).hyperlink = os.path.dirname(right_file[
-                                                                                                            "url"])
-
-            if cell_time_URL_1.value != "" and cell_time_URL_2.value != "":
-                time_URL_1 = int(cell_time_URL_1.value.replace("-", "").replace(":", "").replace(" ", ""))
-                time_URL_2 = int(cell_time_URL_2.value.replace("-", "").replace(":", "").replace(" ", ""))
-                if time_URL_1 > time_URL_2:
-                    ws.cell(row=row, column=3, value="").fill = green_fill
-                    ws.cell(row=row, column=5, value="").fill = yellow_fill
-                    if int(cell_time_URL_2.value.replace("-", "").replace(":", "").replace(" ", "")) > maxTimeFile:
-                        maxTimeFile = int(cell_time_URL_2.value.replace("-", "").replace(":", "").replace(" ", ""))
-                        maxTimeFileList = [row, 2]
-                elif time_URL_1 < time_URL_2:
-                    ws.cell(row=row, column=3, value="").fill = yellow_fill
-                    ws.cell(row=row, column=5, value="").fill = green_fill
-                    if int(cell_time_URL_1.value.replace("-", "").replace(":", "").replace(" ", "")) > maxTimeFile:
-                        maxTimeFile = int(cell_time_URL_1.value.replace("-", "").replace(":", "").replace(" ", ""))
-                        maxTimeFileList = [row, 6]
-            elif cell_time_URL_1.value != "":
-                if int(cell_time_URL_1.value.replace("-", "").replace(":", "").replace(" ", "")) > maxTimeFile:
-                    maxTimeFile = int(cell_time_URL_1.value.replace("-", "").replace(":", "").replace(" ", ""))
-                    maxTimeFileList = [row, 2]
-            elif cell_time_URL_2.value != "":
-                if int(cell_time_URL_2.value.replace("-", "").replace(":", "").replace(" ", "")) > maxTimeFile:
-                    maxTimeFile = int(cell_time_URL_2.value.replace("-", "").replace(":", "").replace(" ", ""))
-                    maxTimeFileList = [row, 6]
-        if maxTimeFileList != [0,0]:
-            ws.cell(row=maxTimeFileList[0], column=maxTimeFileList[1]).fill = green_fill
-        print(number, maxTimeFileList)
-
-        ExcelPrint.auto_fit_columns(ws)
-        ws.column_dimensions['C'].width = 2
-        ws.column_dimensions['E'].width = 2
-
-    def save(self, output_text=None):
-        """Сохраняет Excel-файл."""
-        try:
-            if output_text:
-                output_text.insert(tk.END, f"\nФайл сохранён как {self.filename}\n")
-            self.wb.save(self.filename)
-        except Exception as e:
-            print(f"Ошибка при сохранении Excel: {e}")
+if __name__ == "__main__":
+    output_file = f"BD_CNCprog_{today}"
+    if not output_file.endswith(".xlsx"):
+        output_file += ".xlsx"
+    main(output_file)
