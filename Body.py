@@ -4,10 +4,28 @@ import threading
 import tkinter as tk
 import webbrowser
 from tkinter import ttk, messagebox, filedialog
-
 from ApplicationDataChecker import main as application_data_checker_main
 from AuthorVerificationProgram import main as author_main
 from CNCFileCheckingProgram import mainCNCFileCheckingProgram, today
+
+
+class ProgressTracker:
+    """Класс для отслеживания и передачи прогресса в GUI"""
+
+    def __init__(self, gui_instance):
+        self.gui = gui_instance
+        self.total_steps = 100  # Значение по умолчанию
+
+    def set_total(self, total):
+        """Установка общего количества шагов"""
+        self.total_steps = total
+
+    def update(self, current, message=""):
+        """Обновление прогресса"""
+        if self.total_steps > 0:
+            progress_percent = (current / self.total_steps) * 100
+            # Используем after для безопасного обновления GUI из другого потока
+            self.gui.root.after(0, lambda: self.gui.update_progress(progress_percent, message))
 
 
 class GUIdirManager:
@@ -148,6 +166,7 @@ class DirectoryManagerGUI:
         if not os.path.isdir(path):
             messagebox.showerror("Ошибка", "Указанный путь не существует или не является директорией")
             return
+
         if not name or not path:
             messagebox.showwarning("Предупреждение", "Пожалуйста, заполните все поля")
             return
@@ -197,7 +216,9 @@ class MainCNCprogrammeGUI:
         self.dir_manager = GUIdirManager(self.root)
 
         # Переменные
-        self.choseUserProgramme = tk.IntVar()
+        self.run_cnc_checking = tk.BooleanVar()
+        self.run_data_checker = tk.BooleanVar()
+        self.run_author_verification = tk.BooleanVar()
         self.choseUserChangeDir = tk.BooleanVar()
         self.choseUserUseSaveDir = tk.BooleanVar()
         self.custom_output_file = tk.StringVar()
@@ -206,25 +227,27 @@ class MainCNCprogrammeGUI:
         self.create_widgets()
 
     def create_widgets(self):
-        # Фрейм для выбора варианта программы
-        program_frame = ttk.LabelFrame(self.root, text="Выберите вариант работы программы", padding=10)
+        # Фрейм для выбора программ
+        program_frame = ttk.LabelFrame(self.root, text="Выберите программы для запуска", padding=10)
         program_frame.pack(fill="x", padx=10, pady=5)
 
-        # Радиокнопки для выбора варианта
-        programs = [
-            ("1. Работает только программа обработки директорий", 1),
-            ("2. Работают программа обработки директорий и программа создания сводных таблиц", 2),
-            ("3. Работает программа отображения авторов nc и h файлов", 3),
-            ("4. Работают программы обработки директорий и отображения авторов", 4),
-            ("5. Работают все программы", 5)
-        ]
+        # Чекбоксы для выбора программ
+        cnc_cb = ttk.Checkbutton(program_frame, text="Программа обработки директорий",
+                                 variable=self.run_cnc_checking)
+        cnc_cb.pack(anchor="w", pady=2)
 
-        for text, value in programs:
-            rb = ttk.Radiobutton(program_frame, text=text, variable=self.choseUserProgramme, value=value)
-            rb.pack(anchor="w", pady=2)
+        data_cb = ttk.Checkbutton(program_frame, text="Программа создания сводных таблиц",
+                                  variable=self.run_data_checker)
+        data_cb.pack(anchor="w", pady=2)
 
-        # Установка значения по умолчанию
-        self.choseUserProgramme.set(1)
+        author_cb = ttk.Checkbutton(program_frame, text="Программа отображения авторов nc и h файлов",
+                                    variable=self.run_author_verification)
+        author_cb.pack(anchor="w", pady=2)
+
+        # Установка значений по умолчанию
+        self.run_cnc_checking.set(True)
+        self.run_data_checker.set(False)
+        self.run_author_verification.set(False)
 
         # Фрейм для настроек директорий
         dir_frame = ttk.LabelFrame(self.root, text="Настройки директорий", padding=10)
@@ -244,19 +267,26 @@ class MainCNCprogrammeGUI:
         file_frame = ttk.LabelFrame(self.root, text="Имя выходного файла (необязательно)", padding=10)
         file_frame.pack(fill="x", padx=10, pady=5)
 
+
         # Поле ввода для имени файла
         self.output_file_entry = ttk.Entry(file_frame, textvariable=self.custom_output_file)
-        self.output_file_entry.pack(fill="x", pady=2)
+        self.output_file_entry.grid(row=0, column=0, sticky="ew")
+        file_frame.columnconfigure(0, weight=1)
+
+        output_file = f"BD_CNCprog_{today}"
+        if not output_file.endswith(".xlsx"):
+            output_file += ".xlsx"
+        self.output_file_entry.insert(0, output_file)
 
         # Кнопка для выбора файла
         browse_btn = ttk.Button(file_frame, text="Выбрать файл", command=self.browse_file)
-        browse_btn.pack(pady=5)
+        browse_btn.grid(row=0, column=1, padx=(5, 0))
 
         # Прогресс-бар
         progress_frame = ttk.Frame(self.root)
         progress_frame.pack(fill="x", padx=10, pady=5)
 
-        self.progress = ttk.Progressbar(progress_frame, mode='indeterminate')
+        self.progress = ttk.Progressbar(progress_frame, mode='determinate')
         self.progress.pack(fill="x", pady=2)
 
         self.progress_label = ttk.Label(progress_frame, text="Готово")
@@ -266,6 +296,10 @@ class MainCNCprogrammeGUI:
         run_btn = ttk.Button(self.root, text="ЗАПУСТИТЬ ПРОГРАММУ", command=self.start_program)
         run_btn.pack(pady=10)
 
+        # Текстовое поле для логов
+        self.logFrameDrow()
+
+    def logFrameDrow(self):
         # Текстовое поле для логов
         log_frame = ttk.LabelFrame(self.root, text="Лог выполнения", padding=5)
         log_frame.pack(fill="both", expand=True, padx=10, pady=5)
@@ -295,25 +329,34 @@ class MainCNCprogrammeGUI:
             self.custom_output_file.set(filename)
 
     def log_message(self, message):
-        self.log_text.insert(tk.END, message + "\n")
-        self.log_text.see(tk.END)
-        self.root.update()
+        try:
+            self.log_text.insert(tk.END, message + "\n")
+            self.log_text.see(tk.END)
+            self.root.update()
+        except:
+            pass
 
     def clear_log(self):
         self.log_text.delete(1.0, tk.END)
 
     def start_program(self):
         """Запуск программы в отдельном потоке"""
-        self.progress.start()
-        self.progress_label.config(text="Выполнение...")
+        # Проверяем, что выбрана хотя бы одна программа
+        if not any([self.run_cnc_checking.get(), self.run_data_checker.get(), self.run_author_verification.get()]):
+            messagebox.showwarning("Предупреждение", "Пожалуйста, выберите хотя бы одну программу для запуска")
+            return
+
+        self.progress["value"] = 0
+        self.progress_label.config(text="Подготовка...")
         thread = threading.Thread(target=self.run_program)
         thread.daemon = True
         thread.start()
 
-    def program_finished(self):
-        """Вызывается по завершении программы"""
-        self.progress.stop()
-        self.progress_label.config(text="Готово")
+    def update_progress(self, value, text):
+        """Обновление прогресс-бара"""
+        self.progress["value"] = value
+        self.progress_label.config(text=text)
+        self.root.update()
 
     def get_output_filename(self):
         output_file = self.custom_output_file.get().strip()
@@ -326,85 +369,86 @@ class MainCNCprogrammeGUI:
     def run_program(self):
         try:
             # Получаем значения
-            choseUserProgramme = self.choseUserProgramme.get()
+            run_cnc = self.run_cnc_checking.get()
+            run_data = self.run_data_checker.get()
+            run_author = self.run_author_verification.get()
             choseUserUseSaveDir = self.choseUserUseSaveDir.get()
             output_file = self.get_output_filename()
 
-            self.log_message(f"Запуск программы. Вариант: {choseUserProgramme}")
+            # Определяем количество шагов
+            total_steps = sum([run_cnc, run_data, run_author])
+            current_step = 0
+
+            self.log_message(f"Запуск выбранных программ:")
+            if run_cnc:
+                self.log_message("- Программа обработки директорий")
+            if run_data:
+                self.log_message("- Программа создания сводных таблиц")
+            if run_author:
+                self.log_message("- Программа отображения авторов")
             self.log_message(f"Выходной файл: {output_file}")
 
-            # Выполнение программы в зависимости от выбора
-            if choseUserProgramme == 1:
+            # Создаем трекер прогресса
+            progress_tracker = ProgressTracker(self)
+
+            # Выполнение программ в зависимости от выбора
+            result_file = output_file
+
+            # Шаг 1: Программа обработки директорий
+            if run_cnc:
+                current_step += 1
+                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100,
+                                                                "Выполнение обработки директорий..."))
                 self.log_message("Выполнение программы обработки директорий...")
+
                 if choseUserUseSaveDir:
                     directories = self.dir_manager.get_directories_list()
-                    result = mainCNCFileCheckingProgram(directories, 1, 0)
+                    # Передаем трекер прогресса в функцию
+                    result_file = mainCNCFileCheckingProgram(directories, 1, 1 if run_data else 0,
+                                                             progress_tracker=progress_tracker)
                 else:
-                    result = mainCNCFileCheckingProgram(list(), 0, 0)
-                self.log_message("Программа завершена!")
+                    result_file = mainCNCFileCheckingProgram(list(), 0, 1 if run_data else 0,
+                                                             progress_tracker=progress_tracker)
+                self.log_message("Программа обработки директорий завершена!")
 
-            elif choseUserProgramme == 2:
-                self.log_message("Выполнение программы обработки директорий и создания сводных таблиц...")
-                if choseUserUseSaveDir:
-                    directories = self.dir_manager.get_directories_list()
-                    output_file = mainCNCFileCheckingProgram(directories, 1, 1)
-                else:
-                    output_file = mainCNCFileCheckingProgram(list(), 0, 1)
-
-                self.log_message("Программа CNCFileCheckingProgram завершена. Создание сводной таблицы...")
-                full_output_path = application_data_checker_main(output_file)
+            # Шаг 2: Программа создания сводных таблиц
+            if run_data:
+                current_step += 1
+                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100,
+                                                                "Создание сводных таблиц..."))
+                self.log_message("Создание сводной таблицы...")
+                full_output_path = application_data_checker_main(result_file)
                 self.log_message("Обработка завершена. Лист 'ДЕ по станкам' создан.")
 
-                # Предложение открыть файл в основном потоке
-                self.root.after(0, lambda: self.ask_open_file(os.path.basename(full_output_path)))
-
-            elif choseUserProgramme == 3:
+            # Шаг 3: Программа отображения авторов
+            if run_author:
+                current_step += 1
+                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100,
+                                                                "Отображение авторов..."))
                 self.log_message("Выполнение программы отображения авторов...")
-                author_main(output_file)
-                self.log_message("Программа завершена!")
+                author_main(result_file)
+                self.log_message("Программа отображения авторов завершена!")
 
-            elif choseUserProgramme == 4:
-                self.log_message("Выполнение программ обработки директорий и отображения авторов...")
-                if choseUserUseSaveDir:
-                    directories = self.dir_manager.get_directories_list()
-                    mainCNCFileCheckingProgram(directories, 1, 1)
-                else:
-                    mainCNCFileCheckingProgram(list(), 0, 1)
-                author_main(output_file)
-                self.log_message("Программы завершены!")
-
-            else:  # choseUserProgramme == 5
-                self.log_message("Выполнение всех программ...")
-                if choseUserUseSaveDir:
-                    directories = self.dir_manager.get_directories_list()
-                    output_file = mainCNCFileCheckingProgram(directories, 1, 1)
-                else:
-                    output_file = mainCNCFileCheckingProgram(list(), 0, 1)
-
-                self.log_message("Программа CNCFileCheckingProgram завершена. Создание сводной таблицы...")
-                full_output_path = application_data_checker_main(output_file)
-                self.log_message("Обработка завершена. Лист 'ДЕ по станкам' создан.")
-
-                author_main(output_file)
-
-                # Предложение открыть файл в основном потоке
-                self.root.after(0, lambda: self.ask_open_file(os.path.basename(full_output_path)))
-
-            self.log_message("Все операции завершены!")
+            # Завершение
+            self.root.after(0, lambda: self.update_progress(100, "Завершено!"))
+            self.log_message("Все выбранные операции завершены!")
             self.root.after(0, lambda: messagebox.showinfo("Успех", "Программа выполнена успешно!"))
+            MainCNCprogrammeGUI.ask_open_file(self, self.output_file_entry.get())
+            print(self.output_file_entry.get())
+
 
         except Exception as e:
             error_msg = f"Ошибка выполнения: {str(e)}"
             self.log_message(error_msg)
             self.root.after(0, lambda: messagebox.showerror("Ошибка", error_msg))
         finally:
-            self.root.after(0, self.program_finished)
+            # Сброс прогресс-бара через 2 секунды
+            self.root.after(2000, lambda: self.update_progress(0, "Готово"))
 
     def ask_open_file(self, file_path):
         """Запрос на открытие файла в основном потоке"""
         if messagebox.askyesno("Открыть файл", "Обработка завершена. Хотите открыть файл?"):
             webbrowser.open(file_path)
-
 
 
 def main():

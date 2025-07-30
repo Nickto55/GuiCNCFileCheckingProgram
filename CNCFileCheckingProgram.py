@@ -1,4 +1,5 @@
 import os
+from itertools import count
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill
 from openpyxl.worksheet.filters import FilterColumn, Filters
@@ -14,18 +15,29 @@ today = date.today()
 def auto_fit_columns(sheet):
     for column_cells in sheet.columns:
         max_length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
-        adjusted_width = (max_length-20) # Немного увеличим для красоты
+        adjusted_width = (max_length - 20)  # Немного увеличим для красоты
         sheet.column_dimensions[get_column_letter(column_cells[0].column)].width = adjusted_width
     sheet.column_dimensions['A'].width = 5
 
 
-def collect_subdirectories(root_dir_list: list):
+def collect_subdirectories(root_dir_list: list, progress_tracker=None):
     global Recursion_Depth, today
     result = {}
 
+    # Устанавливаем общее количество шагов для прогресса
+    if progress_tracker:
+        progress_tracker.set_total(len(root_dir_list))
+
+    count = 0
+
     for dir_name in root_dir_list:
+        # Обновляем прогресс
+        if progress_tracker:
+            progress_tracker.update(count, f"Обработка директории: {os.path.basename(dir_name)}")
+
         project_path = dir_name
         print(f"Создание листа: {os.path.basename(dir_name)}...")
+
         subdirs = []
 
         def recurse(path):
@@ -47,13 +59,18 @@ def collect_subdirectories(root_dir_list: list):
         recurse(project_path)
 
         result[os.path.basename(dir_name)] = subdirs
+        count += 1
+
+    # Завершаем прогресс
+    if progress_tracker:
+        progress_tracker.update(len(root_dir_list), "Обработка директорий завершена")
 
     return result
 
 
 def save_to_excel(data, output_file):
     column_indices = [1, 2, 3]
-    data_range = "B1:D10"
+    data_range = "B1:E10"
 
     fill_color = PatternFill(start_color="d9d9d9", end_color="d9d9d9", fill_type="solid")
 
@@ -105,7 +122,7 @@ def save_to_excel(data, output_file):
     wb.save(output_file)
 
 
-def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm: int):
+def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm: int, progress_tracker=None):
     global listSpli
     global Recursion_Depth
 
@@ -115,7 +132,7 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
 
     def nameUserSee(CONFIG_DIR):
         global nameUser
-        nameUser =""
+        nameUser = ""
         count = 0
 
         for i in CONFIG_DIR:
@@ -128,7 +145,6 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
                 nameUser += i
 
     nameUserSee(CONFIG_DIR)
-
 
     if not choseUser:
         list_main_repo = []
@@ -151,7 +167,8 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
         print(f"Ошибка: '{main_repo}' не является допустимой директорией.")
         return
 
-    data = collect_subdirectories(list_main_repo)
+    # Передаем progress_tracker в collect_subdirectories
+    data = collect_subdirectories(list_main_repo, progress_tracker)
     if not data:
         print(f"Нет подходящих подкаталогов для сохранения.")
         return
@@ -161,26 +178,19 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
         output_file += ".xlsx"
 
     full_output_path = os.path.join(current_directory, output_file)
-    def saveTry(data,full_output_path):
+
+    def saveTry(data, full_output_path):
         try:
             save_to_excel(data, full_output_path)
 
         except Exception as e:
             print(f"Ошибка при сохранении файла: {e}")
-            brobabli = input(f"Таблица с таким именем открыта, закройте её и нажмите Enter")
             saveTry(data, full_output_path)
 
     saveTry(data, full_output_path)
 
-
     if twoProgramm:
         return output_file
-    else:
-        print(f"Данные сохранены в файл, по  пути: {full_output_path}")
-        # Stop для программы
-        stopKod = input(f"Нажмите Enter для  запуска файла, или введите любой символ, а затем Enter, для того чтобы не запускать: ")
-        if stopKod == "":
-            webbrowser.open(full_output_path)
 
 
 if __name__ == "__main__":
