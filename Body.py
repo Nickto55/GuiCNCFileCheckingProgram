@@ -4,28 +4,10 @@ import threading
 import tkinter as tk
 import webbrowser
 from tkinter import ttk, messagebox, filedialog
+
 from ApplicationDataChecker import main as application_data_checker_main
 from AuthorVerificationProgram import main as author_main
 from CNCFileCheckingProgram import mainCNCFileCheckingProgram, today
-
-
-class ProgressTracker:
-    """Класс для отслеживания и передачи прогресса в GUI"""
-
-    def __init__(self, gui_instance):
-        self.gui = gui_instance
-        self.total_steps = 100  # Значение по умолчанию
-
-    def set_total(self, total):
-        """Установка общего количества шагов"""
-        self.total_steps = total
-
-    def update(self, current, message=""):
-        """Обновление прогресса"""
-        if self.total_steps > 0:
-            progress_percent = (current / self.total_steps) * 100
-            # Используем after для безопасного обновления GUI из другого потока
-            self.gui.root.after(0, lambda: self.gui.update_progress(progress_percent, message))
 
 
 class GUIdirManager:
@@ -267,20 +249,13 @@ class MainCNCprogrammeGUI:
         file_frame = ttk.LabelFrame(self.root, text="Имя выходного файла (необязательно)", padding=10)
         file_frame.pack(fill="x", padx=10, pady=5)
 
-
         # Поле ввода для имени файла
         self.output_file_entry = ttk.Entry(file_frame, textvariable=self.custom_output_file)
-        self.output_file_entry.grid(row=0, column=0, sticky="ew")
-        file_frame.columnconfigure(0, weight=1)
-
-        output_file = f"BD_CNCprog_{today}"
-        if not output_file.endswith(".xlsx"):
-            output_file += ".xlsx"
-        self.output_file_entry.insert(0, output_file)
+        self.output_file_entry.pack(fill="x", side="left", expand=True)
 
         # Кнопка для выбора файла
         browse_btn = ttk.Button(file_frame, text="Выбрать файл", command=self.browse_file)
-        browse_btn.grid(row=0, column=1, padx=(5, 0))
+        browse_btn.pack(side="right", padx=(5, 0))
 
         # Прогресс-бар
         progress_frame = ttk.Frame(self.root)
@@ -297,10 +272,6 @@ class MainCNCprogrammeGUI:
         run_btn.pack(pady=10)
 
         # Текстовое поле для логов
-        self.logFrameDrow()
-
-    def logFrameDrow(self):
-        # Текстовое поле для логов
         log_frame = ttk.LabelFrame(self.root, text="Лог выполнения", padding=5)
         log_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
@@ -312,8 +283,8 @@ class MainCNCprogrammeGUI:
         scrollbar.pack(side="right", fill="y")
 
         # Кнопка очистки лога
-        clear_log_btn = ttk.Button(self.root, text="Очистить лог", command=self.clear_log)
-        clear_log_btn.pack(pady=5)
+        clear_log_btn = ttk.Button(self.log_text, text="Очистить лог", command=self.clear_log)
+        clear_log_btn.pack(pady=5, anchor="e")
 
     def open_directory_manager(self):
         if self.choseUserChangeDir.get():
@@ -329,12 +300,9 @@ class MainCNCprogrammeGUI:
             self.custom_output_file.set(filename)
 
     def log_message(self, message):
-        try:
-            self.log_text.insert(tk.END, message + "\n")
-            self.log_text.see(tk.END)
-            self.root.update()
-        except:
-            pass
+        self.log_text.insert(tk.END, message + "\n")
+        self.log_text.see(tk.END)
+        self.root.update()
 
     def clear_log(self):
         self.log_text.delete(1.0, tk.END)
@@ -348,12 +316,15 @@ class MainCNCprogrammeGUI:
 
         self.progress["value"] = 0
         self.progress_label.config(text="Подготовка...")
+        self.progress.start(10)  # Запускаем анимацию прогресс-бара
+
         thread = threading.Thread(target=self.run_program)
         thread.daemon = True
         thread.start()
 
     def update_progress(self, value, text):
         """Обновление прогресс-бара"""
+        self.progress.stop()  # Останавливаем анимацию
         self.progress["value"] = value
         self.progress_label.config(text=text)
         self.root.update()
@@ -378,7 +349,6 @@ class MainCNCprogrammeGUI:
             # Определяем количество шагов
             total_steps = sum([run_cnc, run_data, run_author])
             current_step = 0
-
             self.log_message(f"Запуск выбранных программ:")
             if run_cnc:
                 self.log_message("- Программа обработки директорий")
@@ -388,43 +358,42 @@ class MainCNCprogrammeGUI:
                 self.log_message("- Программа отображения авторов")
             self.log_message(f"Выходной файл: {output_file}")
 
-            # Создаем трекер прогресса
-            progress_tracker = ProgressTracker(self)
-
             # Выполнение программ в зависимости от выбора
             result_file = output_file
+            tracker = ProgressTracker(self)
 
             # Шаг 1: Программа обработки директорий
             if run_cnc:
                 current_step += 1
-                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100,
-                                                                "Выполнение обработки директорий..."))
-                self.log_message("Выполнение программы обработки директорий...")
+                progress_text = f"Выполнение обработки директорий... ({current_step}/{total_steps})"
+                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100, progress_text))
 
+                self.log_message("Выполнение программы обработки директорий...")
                 if choseUserUseSaveDir:
                     directories = self.dir_manager.get_directories_list()
-                    # Передаем трекер прогресса в функцию
-                    result_file = mainCNCFileCheckingProgram(directories, 1, 1 if run_data else 0,
-                                                             progress_tracker=progress_tracker)
+                    progress_text = f"Выполнение обработки директорий... ({current_step}/{total_steps + len(directories)})"
+                    self.root.after(0,
+                                    lambda: self.update_progress((current_step - 1) / total_steps * 100, progress_text))
+                    result_file = mainCNCFileCheckingProgram(directories, 1, 1 if run_data else 0, tracker)
                 else:
-                    result_file = mainCNCFileCheckingProgram(list(), 0, 1 if run_data else 0,
-                                                             progress_tracker=progress_tracker)
+                    result_file = mainCNCFileCheckingProgram(list(), 1, 1 if run_data else 0, tracker)
                 self.log_message("Программа обработки директорий завершена!")
 
             # Шаг 2: Программа создания сводных таблиц
             if run_data:
                 current_step += 1
-                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100,
-                                                                "Создание сводных таблиц..."))
+                progress_text = f"Создание сводных таблиц... ({current_step}/{total_steps})"
+                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100, progress_text))
+
                 self.log_message("Создание сводной таблицы...")
                 full_output_path = application_data_checker_main(result_file)
                 self.log_message("Обработка завершена. Лист 'ДЕ по станкам' создан.")
 
             # Шаг 3: Программа отображения авторов
             if run_author:
-                current_step += 1
-                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100,
-                                                                "Отображение авторов..."))
+                progress_text = f"Отображение авторов... ({current_step}/{total_steps })"
+                self.root.after(0, lambda: self.update_progress((current_step - 1) / total_steps * 100, progress_text))
+
                 self.log_message("Выполнение программы отображения авторов...")
                 author_main(result_file)
                 self.log_message("Программа отображения авторов завершена!")
@@ -433,9 +402,6 @@ class MainCNCprogrammeGUI:
             self.root.after(0, lambda: self.update_progress(100, "Завершено!"))
             self.log_message("Все выбранные операции завершены!")
             self.root.after(0, lambda: messagebox.showinfo("Успех", "Программа выполнена успешно!"))
-            MainCNCprogrammeGUI.ask_open_file(self, self.output_file_entry.get())
-            print(self.output_file_entry.get())
-
 
         except Exception as e:
             error_msg = f"Ошибка выполнения: {str(e)}"
@@ -448,8 +414,27 @@ class MainCNCprogrammeGUI:
     def ask_open_file(self, file_path):
         """Запрос на открытие файла в основном потоке"""
         if messagebox.askyesno("Открыть файл", "Обработка завершена. Хотите открыть файл?"):
-            webbrowser.open(file_path)
+            if os.path.exists(file_path):
+                webbrowser.open(file_path)
+            else:
+                messagebox.showerror("Ошибка", "Файл не найден")
 
+
+class ProgressTracker:
+    def __init__(self, gui_app):
+        self.gui_app = gui_app
+
+    def set_total(self, total_steps):
+        """Устанавливает общее количество шагов"""
+        self.total_steps = total_steps
+        self.current_step = 0
+
+    def update(self, current, message):
+        """Обновляет прогресс-бар и лог"""
+        self.current_step = current + 1
+        progress_percent = int((self.current_step / self.total_steps) * 100)
+        self.gui_app.update_progress(progress_percent, message)
+        self.gui_app.log_message(message)
 
 def main():
     root = tk.Tk()

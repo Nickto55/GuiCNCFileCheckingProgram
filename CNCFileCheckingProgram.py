@@ -146,15 +146,6 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
 
     nameUserSee(CONFIG_DIR)
 
-    if not choseUser:
-        list_main_repo = []
-        main_repo = input(f"Введите путь к репозиторию, нажмите enter: ").strip()
-
-        while main_repo != "":
-            main_repo = main_repo.replace("\\", "/")
-            list_main_repo.append(main_repo)
-            main_repo = input(f"Введите ещё путь к репозиторию, и\или нажмите enter: ")
-
     if not list_main_repo:
         print(f"Не указано ни одного репозитория.")
         return
