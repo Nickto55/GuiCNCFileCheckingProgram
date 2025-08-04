@@ -1,25 +1,30 @@
-import asyncio
-import tkinter as tk
-from tk_async_execute import *
+import tkinter
 
-async def my_async_task(label):
-    for i in range(10):
-        await asyncio.sleep(1)
-        label.config(text=f"Асинхронная задача: {i+1}/10")
 
-async def main():
-    root = tk.Tk()
-    root.title("AsyncIO with Tkinter")
+def func():
+        label_visible_false.pack()
+        button_visible_false.pack()
+        label_visible_true.pack_forget()
+        button_visible_true.pack_forget()
 
-    label = tk.Label(root, text="Загрузка...")
-    label.pack()
 
-    async_execute = TkAsyncExecute(root)
+def visible_true():
+        label_visible_false.pack_forget()
+        button_visible_false.pack_forget()
+        label_visible_true.pack()
+        button_visible_true.pack()
 
-    task = async_execute.run_coroutine(my_async_task(label))
 
-    root.mainloop()
-    await task
+root = tkinter.Tk()
+root.geometry("400x400")
+label_visible_true = tkinter.Label(root, text='Не скрытый текст')
+label_visible_true.pack()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+button_visible_true = tkinter.Button(root, text='Не скрытая кнопка', command=func)
+button_visible_true.pack()
+
+label_visible_false = tkinter.Label(root, text='Скрытый текст')
+
+button_visible_false = tkinter.Button(root, text='Скрытая кнопка', command=visible_true)
+
+root.mainloop()

@@ -17,23 +17,26 @@ def auto_fit_columns(sheet):
         max_length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
         adjusted_width = (max_length - 20)  # Немного увеличим для красоты
         sheet.column_dimensions[get_column_letter(column_cells[0].column)].width = adjusted_width
-    sheet.column_dimensions['A'].width = 5
+    sheet.column_dimensions['A'].width = 5 # Убираем, так как уже задано в save_to_excel
+    sheet.column_dimensions['E'].width = 5 # Убираем, так как уже задано в save_to_excel
+    sheet.column_dimensions['F'].width = 5 # Убираем, так как уже задано в save_to_excel
 
 
 def collect_subdirectories(root_dir_list: list, progress_tracker=None):
     global Recursion_Depth, today
     result = {}
 
-    # Устанавливаем общее количество шагов для прогресса
+    # Устанавливаем общее количество шагов для прогресса (количество директорий)
     if progress_tracker:
         progress_tracker.set_total(len(root_dir_list))
 
     count = 0
 
     for dir_name in root_dir_list:
-        # Обновляем прогресс
+        # Обновляем прогресс в начале обработки директории
+        # Передаем count (0-based index) и сообщение
         if progress_tracker:
-            progress_tracker.update(count, f"Обработка директории: {os.path.basename(dir_name)}")
+             progress_tracker.update(count, f"Обработка директории: {os.path.basename(dir_name)}")
 
         project_path = dir_name
         print(f"Создание листа: {os.path.basename(dir_name)}...")
@@ -61,16 +64,16 @@ def collect_subdirectories(root_dir_list: list, progress_tracker=None):
         result[os.path.basename(dir_name)] = subdirs
         count += 1
 
-    # Завершаем прогресс
+    # Завершаем прогресс (устанавливаем на 100% или последний шаг)
     if progress_tracker:
-        progress_tracker.update(len(root_dir_list), "Обработка директорий завершена")
+        progress_tracker.update(len(root_dir_list) - 1 if root_dir_list else 0, "Обработка директорий завершена")
 
     return result
 
 
 def save_to_excel(data, output_file):
     column_indices = [1, 2, 3]
-    data_range = "B1:E10"
+    data_range = "A1:D100" # Увеличиваем диапазон для фильтра
 
     fill_color = PatternFill(start_color="d9d9d9", end_color="d9d9d9", fill_type="solid")
 
@@ -78,51 +81,94 @@ def save_to_excel(data, output_file):
     del wb["Sheet"]
 
     for project_name, dirs in data.items():
-        ws = wb.create_sheet(title=project_name[:31])
+        # Ограничиваем длину имени листа до 31 символа (ограничение Excel)
+        safe_sheet_name = project_name[:31]
+        # Убираем недопустимые символы для имени листа Excel
+        invalid_chars = ['\\', '/', '*', '[', ']', ':', '?']
+        for char in invalid_chars:
+            safe_sheet_name = safe_sheet_name.replace(char, '_')
+
+        ws = wb.create_sheet(title=safe_sheet_name)
 
         # Заголовки
-        headers = ["", "Название ДСЕ", "Содержимое", "Путь"]
+        headers = ["", "Название ДСЕ", "Содержимое", "Путь", "", "Fm", "Файлы без расширения"]
         for col_num, header in enumerate(headers, 1):
             ws.cell(row=1, column=col_num, value=header)
 
         # создание фильтра и его настройка
-        ws.auto_filter.ref = data_range
-        for col_index in column_indices:
-            filter_column = FilterColumn(colId=col_index - 1)  # индексы в OpenPyXL начинаются с 0
-            filters = Filters()
-            filter_column.filters = filters
-            ws.auto_filter.filterColumn.append(filter_column)
+        # Корректируем диапазон для фильтра: от A1 до последнего столбца и достаточного количества строк
+        if dirs:
+            last_row = len(dirs) + 1 # +1 для заголовка
+        else:
+            last_row = 1
+        filter_range = f"A1:{get_column_letter(len(headers))}{last_row}"
+        ws.auto_filter.ref = filter_range
 
-        for entry in dirs:
-            if 'content' not in entry:
-                entry['content'] = ""
-
-        # данные
+        dirDseList = [2, 0] # [row, boolFm]
+        # Заполнение данных
         for row_idx, entry in enumerate(dirs, 2):
-            ws.cell(row=row_idx, column=2, value=entry['name'])
+            # Убедимся, что ключи существуют
+            name = entry.get('name', '')
+            content = entry.get('content', '')
+            full_path = entry.get('full_path', '')
 
-            # Расскраска
-            cell = ws.cell(row=row_idx, column=3, value=entry['content'])
-            if cell.value == "":
-                for col_num in range(1, ws.max_column + 1):
+            ws.cell(row=row_idx, column=1, value="") # Пустая колонка A
+            ws.cell(row=row_idx, column=2, value=name)
+            cell_content = ws.cell(row=row_idx, column=3, value=content)
+
+            # Расскраска, если content пустой
+            if not content:
+                for col_num in range(1, len(headers) + 1): # Используем len(headers)
                     cell = ws.cell(row=row_idx, column=col_num)
                     cell.fill = fill_color
+                    try:
+                        if dirDseList[1] == 1:
+                            for rowDirFm in range(dirDseList[0], row_idx):
+                                ws.cell(row=rowDirFm,column=6, value="X")
+
+                        dirDseList = [row_idx, 0]
+                    except:
+                        dirDseList = [row_idx, 0]
+                        print("Ошибка: dirDseList пуст")
 
             # Создание гиперссылки
-            cell = ws.cell(row=row_idx, column=4, value=entry['full_path'])
-            cell.hyperlink = f"{cell.value}"
+            cell_path = ws.cell(row=row_idx, column=4, value=full_path)
+            # Проверяем, что full_path не пустой перед созданием гиперссылки
+            if full_path:
+                cell_path.hyperlink = full_path
+
+                file_name, file_extension = os.path.splitext(full_path)
+
+                if content and file_extension == "" and not (os.path.isdir(full_path)):
+                    ws.cell(row=row_idx, column=7, value="X")
+
+                if file_extension == ".fm" and dirDseList[1] != 1:
+                    dirDseList.pop()
+                    dirDseList.append(1)
+
+
+
+
+                # print(os.path.basename(full_path))
+                # Можно установить стиль для гиперссылок, если нужно
+                # from openpyxl.styles import Font
+                # cell_path.font = Font(color="0000FF", underline="single")
 
         # Регулировка ширины столбцов
         auto_fit_columns(ws)
-        ws.column_dimensions['A'].width = 5
-
         # Закрепление первой строки
         ws.freeze_panes = 'A2'
+        ws.column_dimensions['E'].fill = fill_color
 
-    wb.save(output_file)
+    try:
+        wb.save(output_file)
+        print(f"Файл сохранен: {output_file}")
+    except Exception as e:
+         print(f"Ошибка при сохранении файла {output_file}: {e}")
+         raise # Перебрасываем исключение
 
 
-def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm: int, progress_tracker=None):
+def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm: int, progress_tracker=None, countProg=1):
     global listSpli
     global Recursion_Depth
 
@@ -136,33 +182,52 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
         count = 0
 
         for i in CONFIG_DIR:
-            if i == "\\":
+            if i == os.sep: # Используем os.sep
                 if count < 3:
                     count += 1
                 else:
                     break
-            if count == 2 and i != "\\":
+            if count == 2 and i != os.sep:
                 nameUser += i
 
     nameUserSee(CONFIG_DIR)
-
+    # --- УЛУЧШЕННАЯ ПРОВЕРКА ---
     if not list_main_repo:
         print(f"Не указано ни одного репозитория.")
-        return
+        # ВАЖНО: Вернуть что-то осмысленное или None
+        # Учитывая, что twoProgramm управляет возвратом,
+        # нужно решить, что возвращать здесь.
+        if twoProgramm:
+            # Даже если данных нет, нужно вернуть имя файла,
+            # которое ожидает следующая программа.
+            # Но без данных создать файл нельзя.
+            # Лучше вернуть None или пустую строку и обработать это выше.
+            # Или сгенерировать пустой файл.
+            output_file = f"BD_CNCprog_{today}.xlsx"
+            full_output_path = os.path.join(current_directory, output_file)
+            # Создаем пустой файл Excel
+            try:
+                wb = openpyxl.Workbook()
+                del wb["Sheet"] # Удаляем лист по умолчанию
+                wb.save(full_output_path)
+                print(f"Создан пустой файл: {full_output_path}")
+                return output_file # Возвращаем имя файла
+            except Exception as e:
+                print(f"Ошибка при создании пустого файла: {e}")
+                return None # Или поднять исключение
+        else:
+            return # Просто завершаем, если не нужно возвращать значение
 
-    main_repo = list_main_repo[0]
+
+    # main_repo = list_main_repo[0] # Эта строка теперь безопасна, но не используется
 
     Recursion_Depth = 2
 
-    if not os.path.isdir(main_repo):
-        print(f"Ошибка: '{main_repo}' не является допустимой директорией.")
-        return
-
     # Передаем progress_tracker в collect_subdirectories
-    data = collect_subdirectories(list_main_repo, progress_tracker)
-    if not data:
-        print(f"Нет подходящих подкаталогов для сохранения.")
-        return
+    data = collect_subdirectories(list_main_repo, progress_tracker) # Убираем countProg отсюда
+    # if not data: # Даже если data пустое, мы можем создать пустой файл
+    #     print(f"Нет подходящих подкаталогов для сохранения.")
+    #     return
 
     output_file = f"BD_CNCprog_{today}"
     if not output_file.endswith(".xlsx"):
@@ -170,19 +235,16 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
 
     full_output_path = os.path.join(current_directory, output_file)
 
-    def saveTry(data, full_output_path):
-        try:
-            save_to_excel(data, full_output_path)
-
-        except Exception as e:
-            print(f"Ошибка при сохранении файла: {e}")
-            saveTry(data, full_output_path)
-
-    saveTry(data, full_output_path)
-
-    if twoProgramm:
-        return output_file
+    # Оборачиваем save_to_excel в try-except
+    try:
+        save_to_excel(data, full_output_path)
+    except Exception as e:
+        print(f"Ошибка при сохранении файла в mainCNCFileCheckingProgram: {e}")
+        # В зависимости от требований, можно поднять исключение или вернуть None
+        if twoProgramm:
+             return None # Или поднять исключение, если вызывающая сторона должна его обработать
+        else:
+             return # Просто завершаем
 
 
-if __name__ == "__main__":
-    mainCNCFileCheckingProgram([], 0, 0)
+    return output_file # Возвращаем имя файла для следующей программы
