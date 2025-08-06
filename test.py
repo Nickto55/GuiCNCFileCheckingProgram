@@ -1,30 +1,100 @@
-import tkinter
+# import tkinter
+#
+#
+# def func():
+#         label_visible_false.pack()
+#         button_visible_false.pack()
+#         label_visible_true.pack_forget()
+#         button_visible_true.pack_forget()
+#
+#
+# def visible_true():
+#         label_visible_false.pack_forget()
+#         button_visible_false.pack_forget()
+#         label_visible_true.pack()
+#         button_visible_true.pack()
+#
+#
+# root = tkinter.Tk()
+# root.geometry("400x400")
+# label_visible_true = tkinter.Label(root, text='Не скрытый текст')
+# label_visible_true.pack()
+#
+# button_visible_true = tkinter.Button(root, text='Не скрытая кнопка', command=func)
+# button_visible_true.pack()
+#
+# label_visible_false = tkinter.Label(root, text='Скрытый текст')
+#
+# button_visible_false = tkinter.Button(root, text='Скрытая кнопка', command=visible_true)
+#
+# root.mainloop()
 
 
-def func():
-        label_visible_false.pack()
-        button_visible_false.pack()
-        label_visible_true.pack_forget()
-        button_visible_true.pack_forget()
+"""  2E это .   619 байт не удалена (есть)
+     2F это /   619 байт удалена (была)"""
 
 
-def visible_true():
-        label_visible_false.pack_forget()
-        button_visible_false.pack_forget()
-        label_visible_true.pack()
-        button_visible_true.pack()
+# n1 ="41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D 0A 00 20 00 00 00 00 00 01 00 18 00 00 79 01 E9 51 EA DB 01 00 79 01 E9 51 EA DB 01 00 79 01 E9 51 EA DB 01 50 4B 05 06 00 00 00 00 0A 00 0A 00 01 04 00 00 26 6E 19 00 00 00"
+# n2 ="41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D 0A 00 20 00 00 00 00 00 01 00 18 00 80 10 5A 2F BC EC DB 01 80 10 5A 2F BC EC DB 01 80 10 5A 2F BC EC DB 01 50 4B 05 06 00 00 00 00 0A 00 0A 00 01 04 00 00 71 B0 04 00 00 00"
+def hexSravn(n1, n2):
+    nO = ""
+    for i in n2:
+        if nO + i == n1[:len(nO + i)]:
+            nO += i
+        else:
+            break
+    return nO
 
 
-root = tkinter.Tk()
-root.geometry("400x400")
-label_visible_true = tkinter.Label(root, text='Не скрытый текст')
-label_visible_true.pack()
 
-button_visible_true = tkinter.Button(root, text='Не скрытая кнопка', command=func)
-button_visible_true.pack()
+n1 = [
+    "41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D 50 4B 05 06 00 00 00 00 09 00 09 00 41 03 00 00 A1 95 19 00 00 00",
+    "41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D 50 4B 05 06 00 00 00 00 09 00 09 00 41 03 00 00 50 C7 3E 00 00 00"
+]
+n2 = [
+    "41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D 0A 00 20 00 00 00 00 00 01 00 18 00 80 10 5A 2F BC EC DB 01 80 10 5A 2F BC EC DB 01 80 10 5A 2F BC EC DB 01 50 4B 05 06 00 00 00 00 0A 00 0A 00 01 04 00 00 71 B0 04 00 00 00",
+    "41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D 0A 00 20 00 00 00 00 00 01 00 18 00 00 79 01 E9 51 EA DB 01 00 79 01 E9 51 EA DB 01 00 79 01 E9 51 EA DB 01 50 4B 05 06 00 00 00 00 0A 00 0A 00 01 04 00 00 26 6E 19 00 00 00"
+]
 
-label_visible_false = tkinter.Label(root, text='Скрытый текст')
+print(n1[0],n1[1],"",hexSravn(n1[0],n1[1]),"","", sep="\n")
+print(n2[0],n2[1],"" ,hexSravn(n2[0],n2[1]),"","", sep="\n")
+print(hexSravn(n1[0],n1[1]),hexSravn(n2[0],n2[1]),"",hexSravn(hexSravn(n1[0],n1[1]),hexSravn(n2[0],n2[1])), sep="\n")
 
-button_visible_false = tkinter.Button(root, text='Скрытая кнопка', command=visible_true)
+print()
+print("""41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D 50 4B 05 06 00 00 00 00 09 00 09 00 41 03 00 00 
+41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D 0A 00 20 00 00 00 00 00 01 00 18 00 
+41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D """)
 
-root.mainloop()
+# n = """50 4B 03 04 00 00 00 00 00 00 0D 34 E1 5A 65 BF 7B CD 94 02 00 00 94 02 00 00 08 00 38 00 46 69 6C 65 49 6E 66 6F 0A 00 20 00 00 00 00 00 01 00 18 00 00 79 01 E9 51 EA DB 01 00 79 01 E9 51 EA DB 01 00 79 01 E9 51 EA DB 01 FF FF 10 00 00 00 00 00 2C 9E E4 A4 FC 7F 00 00 C0 B2 F0 51 FE FF 00 5B 00 46 00 69 00 6C 00 65 00 49 00 6E 00 66 00 6F 00 5D 00 0A 00 41 00 70 00 70 00 4E 00 61 00 6D 00 65 00 3D 04 1A 04 1E 04 1C 04 1F 04 10 04 21 00 2D 00 33 00 44 00 20 00 76 00 32 00 33 00 0A 00 41 00 70 00 70 00 56 00 65 00 72 00 73 00 69 00 6F 00 6E 00 3D 00 4B 00 4F 00 4D 00 50 00 41 00 53 00 5F 00 32 00 33 00 2E 00 30 00 0A 00 42 00 75 00 69 00 6C 00 64 00 4E 00 75 00 6D 00 3D 00 32 00 33 00 31 00 38 00 5F 00 72 00 65 00 76 00 4B 00 5F 00 31 00 5F 00 72 00 65 00 76 00 4D 00 5F 00 31 00 31 00 38 00 30 00 39 00 38 00 0A 00 41 00 70 00 70 00 50 00 6C 00 61 00 74 00 66 00 6F 00 72 00 6D 00 3D 00 78 00 36 00 34 00 0A 00 4D 00 61 00 74 00 68 00 46 00 69 00 6C 00 65 00 56 00 65 00 72 00 73 00 69 00 6F 00 6E 00 3D 00 30 00 78 00 31 00 35 00 30 00 30 00 30 00 30 00 30 00 31 00 0A 00 41 00 70 00 70 00 46 00 69 00 6C 00 65 00 56 00 65 00 72 00 73 00 69 00 6F 00 6E 00 3D 00 30 00 78 00 31 00 35 00 30 00 30 00 30 00 30 00 32 00 65 00 0A 00 41 00 70 00 70 00 46 00 75 00 6C 00 6C 00 56 00 65 00 72 00 73 00 69 00 6F 00 6E 00 3D 00 32 00 31 00 2E 00 30 00 0A 00 46 00 69 00 6C 00 65 00 54 00 79 00 70 00 65 00 4E 00 61 00 6D 00 65 00 3D 00 4B 00 6F 00 6D 00 70 00 61 00 73 00 2E 00 6D 00 33 00 64 00 0A 00 46 00 69 00 6C 00 65 00 54 00 79 00 70 00 65 00 3D 00 34 00 0A 00 43 00 72 00 65 00 61 00 74 00 65 00 41 00 70 00 70 00 56 00 65 00 72 00 73 00 69 00 6F 00 6E 00 3D 00 30 00 78 00 31 00 37 00 30 00 30 00 30 00 30 00 34 00 34 00 0A 00 43 00 72 00 65 00 61 00 74 00 65 00 44 00 61 00 74 00 61 00 3D 00 30 00 36 00 2F 00 33 00 30 00 2F"""
+# print(n.count(" "))
+
+
+"""========================================================"""
+# ademHex = "41 33 46 46 44 30 35 43 2D 38 31 36 32 2D 34 44 39 44 2D 41 30 38 46 2D 42 37 45 45 41 45 38 36 39 45 43 35 7D 5C 41 44 45 4D 43 41 4D 34 4B 4F 4D 50 41 53 2E 41 44 4D "
+# # ademHex = "43 3A 5C 50 72 6F 67 72 61 6D 20 46 69 6C 65 73 5C 41 53 43 4F 4E 5C 4B 4F 4D 50 41 53 2D 33 44 20 76 32 33 5C 4C 69 62 73 5C 41 44 45 4D 34 4B 4F 4D 50 41 53 5C 56 61 75 6C 74 5C 49 4E 49 5C 74 64 6D 30 2E 69 6E 69"
+#
+# def searchADEM(hex_string):
+#     resultDef = []
+#     hex2string = hex_string[hex_string.find("43 00 72 00 65 00 61 00 74 00 65 00 44 00 61 00 74 00 61 00 3D 00 "):].replace("43 00 72 00 65 00 61 00 74 00 65 00 44 00 61 00 74 00 61 00 3D 00 ", "")[12:][:2]
+#
+#     ademHex = "43 3A 5C 50 72 6F 67 72 61 6D 20 46 69 6C 65 73 5C 41 53 43 4F 4E 5C 4B 4F 4D 50 41 53 2D 33 44 20 76 32 33 5C 4C 69 62 73 5C 41 44 45 4D 34 4B 4F 4D 50 41 53 5C 56 61 75 6C 74 5C 49 4E 49 5C 74 64 6D 30 2E 69 6E 69  "
+#     hexStringAdem = hex_string.find("43 3A 5C 50 72 6F 67 72 61 6D 20 46 69 6C 65 73 5C 41 53 43 4F 4E 5C 4B 4F 4D 50 41 53 2D 33 44 20 76 32 33 5C 4C 69 62 73 5C 41 44 45 4D 34 4B 4F 4D 50 41 53 5C 56 61 75 6C 74 5C 49 4E 49 5C 74 64 6D 30 2E 69 6E 69  ")
+#     if hexStringAdem == "50":
+#         resultDef.append(1)
+#     elif hexStringAdem == "0A":
+#         resultDef.append(0)
+#     else:
+#         resultDef.append(0)
+#         print("что то не так: {", hexStringAdem,"}")
+#
+#     if hex2string == "2E":
+#         resultDef.append(1)
+#     else:
+#         resultDef.append(0)
+#
+#     return resultDef
+#
+# for file_path in listFiilPath:
+#     hex_string: str
+#     hex_string = read_bytes_at_offset(file_path, start_offset, end_offset)
+#     print(searchADEM(hex_string))
