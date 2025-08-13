@@ -154,7 +154,7 @@ class DirectoryManagerGUI:
         # Фрейм для добавления директории
         add_frame = ttk.LabelFrame(self.window, text="Добавить директорию", padding=10)
         add_frame.pack(fill="x", padx=10, pady=5)
-        ttk.Label(add_frame, text="Имя:").grid(row=0, column=0, sticky="w", padx=(0, 5))
+        Label(add_frame, text="Имя:").grid(row=0, column=0, sticky="w", padx=(0, 5))
         self.name_entry = ttk.Entry(add_frame, width=20)
         self.name_entry.grid(row=0, column=1, padx=(0, 10))
         ttk.Label(add_frame, text="Путь:").grid(row=0, column=2, sticky="w", padx=(0, 5))
@@ -240,10 +240,12 @@ class DirectoryManagerGUI:
 
 class MainCNCprogrammeGUI:
     def __init__(self, root):
+
+        self.maxDistanceY = 105
         self.file_frame_bool = 1
         global change_dir_cb_bool
         self.distanceY = 660
-        self.distanceMinY = 188
+        self.distanceMinY = 152
         self.root = root
         self.root.title("CNCFileCheckingProgram")
         self.root.geometry(f"700x{self.distanceY}")
@@ -260,6 +262,7 @@ class MainCNCprogrammeGUI:
         self.dir_manager = GUIdirManager(self.root)
         # Переменные
         self.log_frame_Bool = 0
+
         self.timerWorkProg = StringVar(value=f"Время работы программы: Нет")
         self.timerWorkProgBool = 1
         self.run_cnc_checking = tk.BooleanVar()
@@ -422,12 +425,14 @@ class MainCNCprogrammeGUI:
 
     def log_frame_command(self):
         if self.log_frame_Bool:
-            self.root.geometry(f"700x{self.distanceMinY}")
             self.log_frame.place_forget()
+            self.progress_label.grid_remove()
+            self.root.geometry(f"700x{self.distanceMinY}")
 
         else:
             self.root.geometry(f"700x{self.distanceY}")
             distanceY = 180
+            self.progress_label.grid(row=1, column=0)
             self.log_frame.place(x=10, y=distanceY, height=650 - distanceY, width=680)
         self.log_frame_Bool = not self.log_frame_Bool
 
@@ -637,7 +642,7 @@ class MainCNCprogrammeGUI:
             execution_time= str(execution_time)
             minutes, seconds = seconds_to_minutes_seconds(int(execution_time[:execution_time.index(".")]))
             self.timerWorkProg.set(f"Время работы программы: {minutes}мин {seconds}сек")
-            self.timer_label.place(x=5, y=139, height=24)
+            self.timer_label.place(x=5, y=self.maxDistanceY, height=24)
             self.ask_open_file(file_to_open)  # Передаем правильный путь к файлу
 
         except Exception as e:
@@ -651,19 +656,27 @@ class MainCNCprogrammeGUI:
     def create_widgets(self):
         global change_dir_cb_bool
 
+        offsetX = 5
+        offsetY = 0
+
+        maxDistanceY = self.maxDistanceY
+        distanseY = 25
+
         # Фрейм для выбора программ
         program_frame = ttk.LabelFrame(self.root, text="Выберите программы для запуска", padding=10)
-        program_frame.pack(fill="x", padx=10, pady=5)
+        program_frame.place(x=offsetX, y=offsetY,height=100 , width=400 )
+
         # Чекбоксы для выбора программ
         cnc_cb = ttk.Checkbutton(program_frame, text="Программа обработки директорий",
                                  variable=self.run_cnc_checking)
-        cnc_cb.pack(anchor="w", pady=2)
+
+        cnc_cb.place(x=offsetX, y = 0)
         data_cb = ttk.Checkbutton(program_frame, text="Программа создания сводной таблицы",
                                   variable=self.run_data_checker)
-        data_cb.pack(anchor="w", pady=2)
+        data_cb.place(x=offsetX, y = offsetY+distanseY)
         author_cb = ttk.Checkbutton(program_frame, text="Программа отображения авторов nc и h файлов",
                                     variable=self.run_author_verification)
-        author_cb.pack(anchor="w", pady=2)
+        author_cb.place(x=offsetX, y = offsetY+distanseY*2)
         # Установка значений по умолчанию
         self.run_cnc_checking.set(True)
         self.run_data_checker.set(False)
@@ -678,25 +691,28 @@ class MainCNCprogrammeGUI:
         # change_dir_cb.pack(anchor="w", pady=2)
         # Фрейм для имени файла
 
+
+
         # Прогресс-бар
         progress_frame = ttk.Frame(self.root)
-        progress_frame.pack(fill="x", padx=10, pady=5)
+        progress_frame.place(x=offsetX, y=maxDistanceY,height=60)
         self.progress = ttk.Progressbar(progress_frame, mode='determinate', length=600,
                                         maximum=100)  # Убедимся, что maximum=100
-        self.progress.grid(row=0, column=0, sticky="w")
+        self.progress.place(x=5,y=self.maxDistanceY-5)
         self.progress_label = ttk.Label(progress_frame, text="Готово")
         self.progress_label.grid(row=1, column=0)
+
         self.progress.grid_remove()
         self.progress_label.grid_remove()
 
         self.timer_label = Label(self.root, textvariable=self.timerWorkProg)
-        self.timer_label.place(x=5, y=139, height=24)
+        self.timer_label.place(x=5, y=self.maxDistanceY-1, height=24)
         self.timer_label.place_forget()
 
         # Кнопка запуска
         run_btn = ttk.Button(self.root, text="Начать", command=self.start_program)
         # run_btn.grid(row=0,column=1,sticky="e",padx=5)
-        run_btn.place(x=615, y=139, height=24)
+        run_btn.place(x=615, y=maxDistanceY-1, height=24)
 
         # Текстовое поле для логов
         self.log_frame = ttk.LabelFrame(self.root, text="Лог выполнения", padding=5)
@@ -708,8 +724,10 @@ class MainCNCprogrammeGUI:
         scrollbar.pack(side="right", fill="y")
         clear_log_btn = ttk.Button(self.log_text, text="Очистить лог", command=self.clear_log)
         clear_log_btn.pack(pady=5, anchor="e")
-        self.root.geometry(f"700x{self.distanceMinY}")
         self.log_frame.place_forget()
+
+        self.root.geometry(f"700x{self.distanceMinY}")
+
 
     def file_frame_command(self):
         if self.file_frame_bool:
