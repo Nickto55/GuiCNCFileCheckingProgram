@@ -1,8 +1,8 @@
-from dateutil.utils import today
-
-
-def outputFileDef():
-    output_file = f"BD_CNCprog_{today}"
-    if not output_file.endswith(".xlsx"):
-        output_file += ".xlsx"
-    return f"{output_file}"
+config = {
+    "Name Program": "CNCFielChekingProgram",
+    "Name ouput automaticallyFile": "BD_CNCprogAutomatically",
+    "Path for output automaticallyFile": "",
+    "Run with GUI": True,
+    "Run automatically": False,
+    "last time use automatically search": "2025-08-13 15:05:22.491983"
+}

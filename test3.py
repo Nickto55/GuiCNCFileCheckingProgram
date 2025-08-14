@@ -103,7 +103,13 @@ def searchADEM(hex_string):
     return resultDef
 
 
-
+"""
+    sheet.column_dimensions['A'].width = 5
+    sheet.column_dimensions['E'].width = 5
+    sheet.column_dimensions['F'].width = 5
+    sheet.column_dimensions['H'].width = 5
+    sheet.column_dimensions['K'].width = 5
+"""
 
 def main(file_path):
     hex_string = read_bytes_at_offset(file_path)

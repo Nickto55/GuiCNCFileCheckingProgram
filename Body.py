@@ -9,23 +9,28 @@ from tkinter import *
 from tkinter import ttk, messagebox, filedialog
 from tkinter.scrolledtext import ScrolledText
 
+import plyer
+
 from ApplicationDataChecker import main as application_data_checker_main
 from AuthorVerificationProgram import main as author_main
 from CNCFileCheckingProgram import mainCNCFileCheckingProgram, today
+from useJson import JsonSave, JsonConfig
+
 
 def seconds_to_minutes_seconds(seconds):
-  """
-  Преобразует секунды в минуты и секунды.
+    """
+    Преобразует секунды в минуты и секунды.
 
-  Args:
-    seconds: Целое число, представляющее секунды.
+    Args:
+      seconds: Целое число, представляющее секунды.
 
-  Returns:
-    Кортеж из двух целых чисел: (минуты, секунды).
-  """
-  minutes = seconds // 60
-  remaining_seconds = seconds % 60
-  return minutes, remaining_seconds
+    Returns:
+      Кортеж из двух целых чисел: (минуты, секунды).
+    """
+    minutes = seconds // 60
+    remaining_seconds = seconds % 60
+    return minutes, remaining_seconds
+
 
 def resource_path(relative_path):
     try:
@@ -34,15 +39,9 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+
 change_dir_cb_bool = 0
 
-
-# --- ИЗМЕНЕНО/ДОБАВЛЕНО ---
-# Предполагаем, что эти классы определены в других файлах
-# from GUIdirManager import GUIdirManager
-# from DirectoryManagerGUI import DirectoryManagerGUI
-# Для автономности примера, вставим их определения сюда
-# (Обычно они будут в отдельных файлах)
 
 class GUIdirManager:
     """GUI версия менеджера директорий"""
@@ -235,7 +234,16 @@ class DirectoryManagerGUI:
         for name, path in self.dir_manager.directories.items():
             self.tree.insert("", "end", values=(name, path))
 
+def send_notification(title, message, settime=15, file_path=""):
+    plyer.notification.notify(
+        title=title,
+        message=message,
+        app_name="ToolCheckerProgram",
+        timeout=settime
+    )
 
+    if file_path and os.path.exists(file_path) and file_path != "":
+        os.startfile(file_path)
 # --- КОНЕЦ ВСТАВКИ КЛАССОВ ---
 
 class MainCNCprogrammeGUI:
@@ -250,6 +258,9 @@ class MainCNCprogrammeGUI:
         self.root.title("CNCFileCheckingProgram")
         self.root.geometry(f"700x{self.distanceY}")
         self.root.resizable(False, False)
+        self.operating_mode_var = StringVar(value="0")
+        self.selection_gui_var = StringVar(value="Включён")
+        self.selection_gui_bool = True
 
         # Установка иконки
         try:
@@ -272,13 +283,15 @@ class MainCNCprogrammeGUI:
         self.choseUserUseSaveDir = tk.BooleanVar()
         self.choseUserUseSaveDir = True
         self.custom_output_file = tk.StringVar()
+        self.config_json = JsonConfig()
 
         main_menu = tk.Menu()
         # подменю настроек
         settings_menu = tk.Menu(tearoff=0)
         settings_menu.add_command(label="Отобразить ход программы", command=self.log_frame_command)
         settings_menu.add_command(label="Имя файла", command=self.file_frame_command)
-        settings_menu.add_command(label="Run config json", command=self.runDirFileJson)
+        settings_menu.add_command(label="Run config json", command=self.run_config_file_json)
+        settings_menu.add_command(label=f"Графический интерфейс", command=self.selection_gui_command)
 
         main_menu.add_cascade(label="Settings", menu=settings_menu)
         main_menu.add_cascade(label="Saved Directories", command=self.open_directory_manager)
@@ -288,8 +301,16 @@ class MainCNCprogrammeGUI:
         # Создание интерфейса
         self.create_widgets()
 
-    def runDirFileJson(self):
-        webbrowser.open(self.dir_manager.returnNameFile())
+    def selection_gui_command(self):
+        if self.selection_gui_bool:
+            self.selection_gui_var.set("Выключен")
+        else:
+            self.selection_gui_var.set("Включён")
+        self.selection_gui_bool = not self.selection_gui_bool
+
+    def run_config_file_json(self):
+        webbrowser.open(self.config_json.return_file_path())
+
 
     def show_program_info(self, parent=None):
         """
@@ -313,7 +334,6 @@ class MainCNCprogrammeGUI:
         except Exception as e:
             print(f"Не удалось установить иконку: {e}")
 
-
         # Центрируем окно относительно родительского окна
         if parent:
             parent_x = parent.winfo_x()
@@ -323,14 +343,10 @@ class MainCNCprogrammeGUI:
 
             x = parent_x + (parent_width // 2) - (600 // 2)
             y = parent_y + (parent_height // 2) - (500 // 2)
-            if x <0 or y <0:
+            if x < 0 or y < 0:
                 info_window.geometry(f"600x500")
             else:
                 info_window.geometry(f"600x500+{x}+{y}")
-
-        # Запрещаем закрытие родительского окна
-        # info_window.transient(parent)
-        # info_window.grab_set()
 
         info_window.lift()
         info_window.focus_force()
@@ -457,28 +473,43 @@ class MainCNCprogrammeGUI:
         self.log_text.delete(1.0, tk.END)
 
     def start_program(self):
-        self.file_frame_command()
-        if self.timerWorkProgBool:
-            self.timer_label.place_forget()
-            self.timerWorkProgBool = not self.timerWorkProgBool
-            # self добавить таймер удаление
-        self.progress.grid()
-        self.progress_label.grid()
-        """Запуск программы в отдельном потоке"""
-        # Проверяем, что выбрана хотя бы одна программа
-        if not any([self.run_cnc_checking.get(), self.run_data_checker.get(), self.run_author_verification.get()]):
-            messagebox.showwarning("Предупреждение", "Пожалуйста, выберите хотя бы одну программу для запуска")
+        print( self.operating_mode_var.get())
+        if  "0" == self.operating_mode_var.get():
+            messagebox.showwarning("Внимание", "Перед началом выберете режим работы!")
             return
-        self.progress["value"] = 0
-        self.progress_label.config(text="Подготовка...")
-        total_steps = sum([
-            self.run_cnc_checking.get(),
-            self.run_data_checker.get(),
-            self.run_author_verification.get()
-        ])
-        thread = threading.Thread(target=lambda: self.run_program(total_steps))
-        thread.daemon = True
-        thread.start()
+        elif  self.operating_mode_var.get() == "2":
+            self.file_frame_command()
+            if self.timerWorkProgBool:
+                self.timer_label.place_forget()
+                self.timerWorkProgBool = not self.timerWorkProgBool
+                # self добавить таймер удаление
+            self.progress.grid()
+            self.progress_label.grid()
+            """Запуск программы в отдельном потоке"""
+            # Проверяем, что выбрана хотя бы одна программа
+            if not any([self.run_cnc_checking.get(), self.run_data_checker.get(), self.run_author_verification.get()]):
+                messagebox.showwarning("Предупреждение", "Пожалуйста, выберите хотя бы одну программу для запуска")
+                return
+            self.progress["value"] = 0
+            self.progress_label.config(text="Подготовка...")
+            total_steps = sum([
+                self.run_cnc_checking.get(),
+                self.run_data_checker.get(),
+                self.run_author_verification.get()
+            ])
+            thread = threading.Thread(target=lambda: self.run_program(total_steps))
+            thread.daemon = True
+            thread.start()
+        elif  self.operating_mode_var.get() == "1":
+
+
+            send_notification("Программа завершена.",
+                              f"Программа ToolCheckerProgram завершена, данные сохранены в файл: {self.config_json.getNameAutomaticallyFile()}.xlsx",
+                              15,
+                              f"{self.config_json.getPathAutomaticallyFile()}.xlsx"
+                              )
+        else:
+            messagebox.showerror("Ошибка","Что то пошло не так при выборе режима работы")
 
     def update_progress(self, value, text):
         """Обновление прогресс-бара"""
@@ -494,7 +525,6 @@ class MainCNCprogrammeGUI:
             output_file += ".xlsx"
         return output_file
 
-    # --- ИЗМЕНЕНО --- run_program теперь принимает total_steps
     def run_program(self, total_steps):
         try:
             # Получаем значения
@@ -504,8 +534,6 @@ class MainCNCprogrammeGUI:
 
             output_file = self.get_output_filename()
             print("output_file", output_file)
-
-            # --- УДАЛЕНО --- total_steps больше не вычисляется здесь, принимается как аргумент
 
             self.log_message(f"Запуск выбранных программ:")
             # countProg =0 # --- УДАЛЕНО --- Не используется
@@ -527,29 +555,24 @@ class MainCNCprogrammeGUI:
             # Шаг 1: Программа обработки директорий
             """
             if run_cnc:
-                # Вычисляем сегмент для этой программы
                 segment_start_percent = (current_step / total_steps) * 100
                 segment_size_percent = (1 / total_steps) * 100
                 current_step += 1
 
                 progress_text = f"Выполнение обработки директорий... ({current_step}/{total_steps})"
-                # Инициализируем прогресс на начало сегмента
                 self.root.after(0, lambda: self.update_progress(segment_start_percent, progress_text))
                 self.log_message("Выполнение программы обработки директорий...")
-
-                # Создаем новый трекер для этой программы с информацией о сегменте
                 tracker = ProgressTracker(self, segment_start_percent, segment_size_percent)
 
                 directories = self.dir_manager.get_directories_list()
                 if not directories:
-                    # Обработка случая, если выбрано использование сохраненных, но они пусты
                     warning_msg = "Предупреждение: Выбрано использование сохраненных директорий, но список пуст. Пропуск обработки."
                     self.log_message(warning_msg)
                     self.root.after(0, lambda: self.update_progress(segment_start_percent + segment_size_percent,
                                                                     "Пропущено: Нет директорий"))
+                    print("Я тут")
                 else:
                     result_file = mainCNCFileCheckingProgram(directories, 1, 1 if run_data else 0, tracker, 1)
-                    # --- ИЗМЕНЕНО --- Проверяем, вернула ли функция имя файла
                     print(result_file)
                     if result_file is None:
                         print(result_file, "Программа обработки директорий не вернула имя файла.")
@@ -574,8 +597,6 @@ class MainCNCprogrammeGUI:
                 tracker = ProgressTracker(self, segment_start_percent, segment_size_percent)
 
                 try:
-                    # --- ИСПРАВЛЕНО/ОБНОВЛЕНО ---
-                    # Передаем result_file и tracker в application_data_checker_main
                     full_output_path = application_data_checker_main(output_file, tracker)
                     self.log_message("Обработка завершена. Лист 'ДСЕ по станкам' создан.")
                     # Обновляем прогресс до конца сегмента после завершения
@@ -593,8 +614,6 @@ class MainCNCprogrammeGUI:
             # Шаг 3: Программа отображения авторов
             """
             if run_author:
-                # print("++++++++++++++++++++++++++++++++++++++++++++")
-                # Вычисляем сегмент для этой программы
                 segment_start_percent = (current_step / total_steps) * 100
                 segment_size_percent = (1 / total_steps) * 100
                 current_step += 1
@@ -603,12 +622,7 @@ class MainCNCprogrammeGUI:
                 self.root.after(0, lambda: self.update_progress(segment_start_percent, progress_text))
                 self.log_message("Выполнение программы отображения авторов...")
 
-                # Создаем новый трекер для этой программы
                 tracker = ProgressTracker(self, segment_start_percent, segment_size_percent)
-                # tracker.set_total и tracker.update вызываются внутри author_main,
-                # но мы можем установить начальное состояние
-                # tracker.set_total(1) # Это можно убрать, так как author_main сам установит total
-                # tracker.update(0, "Запуск AuthorVerificationProgram...") # Это тоже можно убрать
 
                 try:
                     # --- ИСПРАВЛЕНО ---
@@ -625,25 +639,22 @@ class MainCNCprogrammeGUI:
                     # Обновляем прогресс с сообщением об ошибке
                     self.root.after(0, lambda: self.update_progress(segment_start_percent + segment_size_percent,
                                                                     f"Ошибка в отображении авторов: {type(e).__name__}"))
-                    raise  # Перебрасываем исключение
+                    raise
 
-            # print("==============================================")
             # Завершение
-
             self.root.after(0, lambda: self.update_progress(100, "Завершено!"))
             self.log_message("Все выбранные операции завершены!")
             self.progress.grid_remove()
             self.progress_label.grid_remove()
-            # --- ИЗМЕНЕНО --- Используем output_file, если result_file не был изменен (например, если не запускалась CNC)
             file_to_open = result_file if result_file != output_file else output_file
             end_time = time.time()
             execution_time = end_time - start_time
             self.timerWorkProgBool = 1
-            execution_time= str(execution_time)
+            execution_time = str(execution_time)
             minutes, seconds = seconds_to_minutes_seconds(int(execution_time[:execution_time.index(".")]))
             self.timerWorkProg.set(f"Время работы программы: {minutes}мин {seconds}сек")
             self.timer_label.place(x=5, y=self.maxDistanceY, height=24)
-            self.ask_open_file(file_to_open)  # Передаем правильный путь к файлу
+            self.ask_open_file(file_to_open)
 
         except Exception as e:
             error_msg = f"Ошибка выполнения: {str(e)}"
@@ -663,20 +674,32 @@ class MainCNCprogrammeGUI:
         distanseY = 25
 
         # Фрейм для выбора программ
-        program_frame = ttk.LabelFrame(self.root, text="Выберите программы для запуска", padding=10)
-        program_frame.place(x=offsetX, y=offsetY,height=100 , width=400 )
+        program_frame = ttk.LabelFrame(self.root, text="Выберите программы для запуска:", padding=10)
+        program_frame.place(x=offsetX, y=offsetY, height=100, width=330)
 
         # Чекбоксы для выбора программ
         cnc_cb = ttk.Checkbutton(program_frame, text="Программа обработки директорий",
                                  variable=self.run_cnc_checking)
 
-        cnc_cb.place(x=offsetX, y = 0)
+        cnc_cb.place(x=offsetX, y=0)
         data_cb = ttk.Checkbutton(program_frame, text="Программа создания сводной таблицы",
                                   variable=self.run_data_checker)
-        data_cb.place(x=offsetX, y = offsetY+distanseY)
+        data_cb.place(x=offsetX, y=offsetY + distanseY)
         author_cb = ttk.Checkbutton(program_frame, text="Программа отображения авторов nc и h файлов",
                                     variable=self.run_author_verification)
-        author_cb.place(x=offsetX, y = offsetY+distanseY*2)
+        author_cb.place(x=offsetX, y=offsetY + distanseY * 2)
+
+        operating_mode = ttk.LabelFrame(self.root, text="Выберите режим работы:", padding=10)
+        operating_mode.place(x=offsetX+530, y=offsetY, height=100, width=160)
+
+        operating_mode_chose = ttk.Radiobutton(operating_mode, text="Ничего",
+                                                       value="0", variable=self.operating_mode_var)
+        operating_mode_chose.grid(row=0,column=0,sticky="w")
+        operating_mode_automatically = ttk.Radiobutton(operating_mode,text="Только различные",value="1", variable=self.operating_mode_var)
+        operating_mode_automatically.grid(row=1,column=0,sticky="w")
+        operating_mode_full = ttk.Radiobutton(operating_mode,text="Всё",value="2", variable=self.operating_mode_var)
+        operating_mode_full.grid(row=2, column=0,sticky="w")
+
         # Установка значений по умолчанию
         self.run_cnc_checking.set(True)
         self.run_data_checker.set(False)
@@ -684,21 +707,13 @@ class MainCNCprogrammeGUI:
         # Фрейм для настроек директорий
         dir_frame = ttk.LabelFrame(self.root, text="Настройки директорий", padding=10)
         dir_frame.pack(fill="x", padx=10, pady=5)
-        # # Чекбоксы
-        # change_dir_cb = ttk.Checkbutton(dir_frame, text="Изменить сохранённые директории",
-        #                                 variable=self.choseUserChangeDir,
-        #                                 command=self.open_directory_manager)
-        # change_dir_cb.pack(anchor="w", pady=2)
-        # Фрейм для имени файла
-
-
 
         # Прогресс-бар
         progress_frame = ttk.Frame(self.root)
-        progress_frame.place(x=offsetX, y=maxDistanceY,height=60)
+        progress_frame.place(x=offsetX, y=maxDistanceY, height=60)
         self.progress = ttk.Progressbar(progress_frame, mode='determinate', length=600,
-                                        maximum=100)  # Убедимся, что maximum=100
-        self.progress.place(x=5,y=self.maxDistanceY-5)
+                                        maximum=100)
+        self.progress.place(x=5, y=self.maxDistanceY - 5)
         self.progress_label = ttk.Label(progress_frame, text="Готово")
         self.progress_label.grid(row=1, column=0)
 
@@ -706,13 +721,12 @@ class MainCNCprogrammeGUI:
         self.progress_label.grid_remove()
 
         self.timer_label = Label(self.root, textvariable=self.timerWorkProg)
-        self.timer_label.place(x=5, y=self.maxDistanceY-1, height=24)
+        self.timer_label.place(x=5, y=self.maxDistanceY - 1, height=24)
         self.timer_label.place_forget()
 
         # Кнопка запуска
         run_btn = ttk.Button(self.root, text="Начать", command=self.start_program)
-        # run_btn.grid(row=0,column=1,sticky="e",padx=5)
-        run_btn.place(x=615, y=maxDistanceY-1, height=24)
+        run_btn.place(x=615, y=maxDistanceY - 1, height=24)
 
         # Текстовое поле для логов
         self.log_frame = ttk.LabelFrame(self.root, text="Лог выполнения", padding=5)
@@ -727,7 +741,6 @@ class MainCNCprogrammeGUI:
         self.log_frame.place_forget()
 
         self.root.geometry(f"700x{self.distanceMinY}")
-
 
     def file_frame_command(self):
         if self.file_frame_bool:
@@ -751,7 +764,6 @@ class MainCNCprogrammeGUI:
 
     def ask_open_file(self, file_path):
         """Запрос на открытие файла в основном потоке"""
-        # --- ИЗМЕНЕНО --- Проверяем file_path, а не self.output_file_entry.get()
         if messagebox.askyesno("Открыть файл", "Обработка завершена. Хотите открыть файл?"):
             # --- ИЗМЕНЕНО --- Проверяем file_path
             if file_path and os.path.exists(file_path):
@@ -781,8 +793,7 @@ class ProgressTracker:
         current_internal_step: текущий шаг внутри программы (0 до total_steps-1)
         message: сообщение для отображения
         """
-        # self.current_step = current + 1 # --- УДАЛЕНО ---
-        self.current_step = current_internal_step  # --- ИЗМЕНЕНО --- Принимаем шаг напрямую
+        self.current_step = current_internal_step
         # Рассчитываем общий процент выполнения:
         # Начало сегмента + (прогресс внутри программы / общее количество шагов внутри программы) * размер сегмента
         if self.total_steps > 0:
