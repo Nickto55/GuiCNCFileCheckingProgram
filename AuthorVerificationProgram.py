@@ -1,15 +1,44 @@
-import openpyxl
 import os
-# from CNCFileCheckingProgram import today # Предполагая, что today импортируется или передается иначе
-# from Config import outputFileDef # Предполагая, что это не используется в этом скрипте напрямую
+from datetime import datetime
+
+import openpyxl
 
 # Параметры (можно оставить как константы или передавать как аргументы, если нужно)
 SEARCH_COLUMN_TITLE = "Содержимое"  # Заголовок столбца с именами файлов
 PATH_COLUMN_TITLE = "Путь"  # Заголовок столбца с полными путями
 RESULT_COLUMN_TITLE = "Автор"  # Заголовок для нового столбца с результатами
+DATA_COLUMN_TITLE = "Дата последнего изменения"  # Заголовок для нового столбца с результатами
+KB_COLUMN_TITLE = "KБ"  # Заголовок для нового столбца с результатами вес
 FILE_EXTENSIONS = [".nc", ".NC", ".h", ".H"]  # Поддерживаемые расширения
 SEARCH_FRAGMENT = "AVTOR"  # Фрагмент строки для поиска
 IGNORED_SHEET = "ДСЕ по станкам"  # Лист, который нужно пропустить
+
+
+def get_directory_size(directory_path: str) -> int:
+    """
+    Возвращает суммарный размер всех файлов в папке (включая вложенные папки) в байтах.
+
+    Args:
+        directory_path (str): Путь к папке.
+
+    Returns:
+        int: Размер папки в байтах.
+    """
+    total_size = 0
+    try:
+        for dirpath, dirnames, filenames in os.walk(directory_path):
+            for filename in filenames:
+                filepath = os.path.join(dirpath, filename)
+                try:
+                    total_size += os.path.getsize(filepath)
+                except OSError:
+                    # Игнорируем файлы, к которым нет доступа
+                    pass
+    except OSError as e:
+        print(f"Ошибка при получении размера папки: {e}")
+        raise
+    return total_size
+
 
 def main(excel_file, progress_tracker=None):
     """
@@ -30,11 +59,8 @@ def main(excel_file, progress_tracker=None):
             for sheet_name in sheets_to_process:
                 ws = wb[sheet_name]
                 # Примерно считаем количество строк данных (вычитаем 1 для заголовка)
-                # iter_rows(min_row=2) не загружает все данные сразу, поэтому используем max_row
-                # Если точность критична, можно сделать ws.max_row - 1, или загрузить и посчитать непустые
-                # Для простоты используем max_row - 1
                 estimated_rows = ws.max_row - 1 if ws.max_row > 1 else 0
-                total_steps += max(estimated_rows, 0) # Убедиться, что не отрицательное
+                total_steps += max(estimated_rows, 0)  # Убедиться, что не отрицательное
 
             progress_tracker.set_total(total_steps)
         # --- Конец логики подсчета шагов ---
@@ -47,13 +73,17 @@ def main(excel_file, progress_tracker=None):
 
             # Находим номера столбцов по заголовкам
             headers = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))  # Получаем первую строку (заголовки)
-            content_col, path_col, result_col = None, None, None
+            content_col, path_col, result_col, data_col, kb_col = None, None, None, None, None
 
             for idx, header in enumerate(headers):
                 if header == SEARCH_COLUMN_TITLE:
                     content_col = idx + 1  # Индексы в OpenPyXL начинаются с 1
                 elif header == PATH_COLUMN_TITLE:
                     path_col = idx + 1
+                elif header == DATA_COLUMN_TITLE:
+                    data_col = idx + 1
+                elif header == KB_COLUMN_TITLE:
+                    kb_col = idx + 1
                 elif header == RESULT_COLUMN_TITLE:
                     result_col = idx + 1  # Если столбец уже существует
 
@@ -62,32 +92,52 @@ def main(excel_file, progress_tracker=None):
                 result_col = len(headers) + 1
                 ws.cell(row=1, column=result_col, value=RESULT_COLUMN_TITLE)
 
+            # Если заголовок даты не найден — добавляем его
+            if data_col is None:
+                data_col = len(headers) + 1
+                ws.cell(row=1, column=data_col, value=DATA_COLUMN_TITLE)
+
+            # Если заголовок размера в КБ не найден — добавляем его
+            if kb_col is None:
+                kb_col = len(headers) + 1
+                ws.cell(row=1, column=kb_col, value=KB_COLUMN_TITLE)
+
             # Проверяем, что найдены все нужные столбцы
             if not all([content_col, path_col]):
                 print(f"Столбцы '{SEARCH_COLUMN_TITLE}' или '{PATH_COLUMN_TITLE}' не найдены на листе '{sheet_name}'")
                 # Даже если столбцы не найдены, увеличиваем счётчик шагов на оценочное количество строк
                 if progress_tracker:
-                     estimated_rows = ws.max_row - 1 if ws.max_row > 1 else 0
-                     for _ in range(estimated_rows):
-                         progress_tracker.update(current_step, f"Пропущен лист '{sheet_name}' (нет столбцов)")
-                         current_step += 1
-                continue # Переходим к следующему листу
+                    estimated_rows = ws.max_row - 1 if ws.max_row > 1 else 0
+                    for _ in range(estimated_rows):
+                        progress_tracker.update(current_step, f"Пропущен лист '{sheet_name}' (нет столбцов)")
+                        current_step += 1
+                continue  # Переходим к следующему листу
 
             # Обрабатываем каждую строку
             # Используем значения, чтобы получить реальное количество строк с данными
-            rows_data = list(ws.iter_rows(min_row=2, values_only=False)) # Загружаем данные
+            rows_data = list(ws.iter_rows(min_row=2, values_only=False))  # Загружаем данные
             for row_idx, row in enumerate(rows_data, start=2):  # Начинаем со второй строки
                 file_name_cell = row[content_col - 1]
                 path_cell = row[path_col - 1]
 
                 # Сообщение для прогресса
-                progress_message = f"Обработка листа '{sheet_name}', строка {row_idx-1}/{len(rows_data)}"
+                progress_message = f"Обработка листа '{sheet_name}', строка {row_idx - 1}/{len(rows_data)}"
 
                 if not (file_name_cell.value and path_cell.value):
                     # Пропускаем пустые ячейки
                     if progress_tracker:
                         progress_tracker.update(current_step, progress_message + " - Пропущена (пустая)")
                         current_step += 1
+                    # Устанавливаем значения по умолчанию для пустых строк
+                    if kb_col:
+                        kb_cell = row[kb_col - 1]
+                        kb_cell.value = ""
+                    if data_col:
+                        data_cell = row[data_col - 1]
+                        data_cell.value = ""
+                    if result_col:
+                        result_cell = row[result_col - 1]
+                        result_cell.value = ""
                     continue
 
                 file_name = str(file_name_cell.value).strip()
@@ -99,6 +149,13 @@ def main(excel_file, progress_tracker=None):
                     if progress_tracker:
                         progress_tracker.update(current_step, progress_message + " - Пропущена (расширение)")
                         current_step += 1
+                    # Устанавливаем значения по умолчанию для строк с неподдерживаемым расширением
+                    if kb_col:
+                        kb_cell = row[kb_col - 1]
+                        kb_cell.value = ""
+                    if data_col:
+                        data_cell = row[data_col - 1]
+                        data_cell.value = ""
                     continue
 
                 # Проверяем существование файла
@@ -107,13 +164,39 @@ def main(excel_file, progress_tracker=None):
                     if progress_tracker:
                         progress_tracker.update(current_step, progress_message + " - Ошибка (файл не найден)")
                         current_step += 1
-                    # Записываем ошибку в ячейку результата, если нужно
-                    # result_cell = row[result_col - 1]
-                    # result_cell.value = "Файл не найден"
+                    # Устанавливаем значения по умолчанию для несуществующих файлов
+                    if kb_col:
+                        kb_cell = row[kb_col - 1]
+                        kb_cell.value = "Файл не найден"
+                    if data_col:
+                        data_cell = row[data_col - 1]
+                        data_cell.value = "Файл не найден"
+                    if result_col:
+                        result_cell = row[result_col - 1]
+                        result_cell.value = "Файл не найден"
                     continue
 
                 try:
-                    with open(full_path, 'r', encoding='utf-8', errors='ignore') as f: # Добавлен encoding и errors
+                    # Получаем размер файла или директории
+                    if os.path.isfile(full_path):
+                        size_bytes = os.path.getsize(full_path)
+                    else:
+                        size_bytes = get_directory_size(full_path)
+                    size_kb = round(size_bytes / 1024)  # Размер в КБ, округленный до целого
+
+                    # Записываем размер в КБ в соответствующую ячейку
+                    kb_cell = row[kb_col - 1]
+                    kb_cell.value = size_kb
+
+                    # Получаем дату последнего изменения
+                    mod_time = os.path.getmtime(full_path)
+                    mod_date = datetime.fromtimestamp(mod_time).strftime('%Y-%m-%d %H:%M:%S')
+
+                    # Записываем дату в соответствующую ячейку
+                    data_cell = row[data_col - 1]
+                    data_cell.value = mod_date
+
+                    with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:  # Добавлен encoding и errors
                         author_found = False
                         for line in f:
                             if SEARCH_FRAGMENT in line:
@@ -131,10 +214,10 @@ def main(excel_file, progress_tracker=None):
                                     result_cell = row[result_col - 1]
                                     result_cell.value = avtor_value
                                     author_found = True
-                                    break # Найден автор, выходим из цикла чтения файла
+                                    break  # Найден автор, выходим из цикла чтения файла
                         if not author_found:
-                             result_cell = row[result_col - 1]
-                             result_cell.value = "Не найден"
+                            result_cell = row[result_col - 1]
+                            result_cell.value = "Не найден"
                     # Обновляем прогресс после обработки файла
                     if progress_tracker:
                         progress_tracker.update(current_step, progress_message + " - Обработан")
@@ -145,25 +228,25 @@ def main(excel_file, progress_tracker=None):
                     if progress_tracker:
                         progress_tracker.update(current_step, progress_message + f" - Ошибка ({type(e).__name__})")
                         current_step += 1
-                    # Записываем ошибку в ячейку результата, если нужно
-                    # result_cell = row[result_col - 1]
-                    # result_cell.value = f"Ошибка: {e}"
+                    # Записываем ошибку в соответствующие ячейки
+                    kb_cell = row[kb_col - 1]
+                    kb_cell.value = f"Ошибка: {e}"
+                    data_cell = row[data_col - 1]
+                    data_cell.value = f"Ошибка: {e}"
+                    result_cell = row[result_col - 1]
+                    result_cell.value = f"Ошибка: {e}"
 
         # Сохраняем изменения
         wb.save(excel_file)
         print("Обработка завершена. Результаты записаны в исходный файл.")
         # Если прогресс дошел не до конца (например, меньше строк, чем ожидалось), обновим до 100%
         if progress_tracker and current_step < total_steps:
-             # Обновляем оставшиеся шаги
-             for i in range(current_step, total_steps):
-                 progress_tracker.update(i, "Завершение...")
-             progress_tracker.update(total_steps - 1, "Обработка авторов завершена") # Убедимся, что последний шаг отмечен
+            # Обновляем оставшиеся шаги
+            for i in range(current_step, total_steps):
+                progress_tracker.update(i, "Завершение...")
+            progress_tracker.update(total_steps - 1,
+                                    "Обработка авторов завершена")  # Убедимся, что последний шаг отмечен
 
     except Exception as e:
         print(f"Критическая ошибка в main AuthorVerificationProgram: {e}")
-        raise # Перебрасываем исключение, чтобы GUI мог его поймать
-
-# if __name__ == '__main__':
-#     # Пример вызова без прогресс-трекера
-#     # main("путь_к_вашему_файлу.xlsx")
-#     pass
+        raise  # Перебрасываем исключение, чтобы GUI мог его поймать

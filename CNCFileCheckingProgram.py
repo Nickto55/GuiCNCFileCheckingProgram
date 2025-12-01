@@ -12,6 +12,9 @@ Recursion_Depth = 2
 today = date.today()
 
 
+class MainAutomaticallySearch:
+    pass
+
 def auto_fit_columns(sheet):
     for column_cells in sheet.columns:
         max_length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
@@ -94,8 +97,7 @@ def save_to_excel(data, output_file):
         ws = wb.create_sheet(title=safe_sheet_name)
 
         # Заголовки
-        headers = ["", "Название ДСЕ", "Содержимое", "Путь", "", "Fm", "Файлы без расширения", "",
-                   "Дата\nпоследнего изменения", " KБ", ""]
+        headers = ["", "Название ДСЕ", "Содержимое", "Путь", "", "Fm", "Файлы без расширения", "", "Дата последнего изменения", " KБ", ""]
         for col_num, header in enumerate(headers, 1):
             ws.cell(row=1, column=col_num, value=header)
 
@@ -198,18 +200,9 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
     # --- УЛУЧШЕННАЯ ПРОВЕРКА ---
     if not list_main_repo:
         print(f"Не указано ни одного репозитория.")
-        # ВАЖНО: Вернуть что-то осмысленное или None
-        # Учитывая, что twoProgramm управляет возвратом,
-        # нужно решить, что возвращать здесь.
         if twoProgramm:
-            # Даже если данных нет, нужно вернуть имя файла,
-            # которое ожидает следующая программа.
-            # Но без данных создать файл нельзя.
-            # Лучше вернуть None или пустую строку и обработать это выше.
-            # Или сгенерировать пустой файл.
             output_file = f"BD_CNCprog_{today}.xlsx"
             full_output_path = os.path.join(current_directory, output_file)
-            # Создаем пустой файл Excel
             try:
                 wb = openpyxl.Workbook()
                 del wb["Sheet"]  # Удаляем лист по умолчанию
@@ -220,17 +213,12 @@ def mainCNCFileCheckingProgram(list_main_repo: list, choseUser: int, twoProgramm
                 print(f"Ошибка при создании пустого файла: {e}")
                 return None  # Или поднять исключение
         else:
-            return  # Просто завершаем, если не нужно возвращать значение
-
-    # main_repo = list_main_repo[0] # Эта строка теперь безопасна, но не используется
+            return
 
     Recursion_Depth = 2
 
     # Передаем progress_tracker в collect_subdirectories
     data = collect_subdirectories(list_main_repo, progress_tracker)  # Убираем countProg отсюда
-    # if not data: # Даже если data пустое, мы можем создать пустой файл
-    #     print(f"Нет подходящих подкаталогов для сохранения.")
-    #     return
 
     output_file = f"BD_CNCprog_{today}"
     if not output_file.endswith(".xlsx"):

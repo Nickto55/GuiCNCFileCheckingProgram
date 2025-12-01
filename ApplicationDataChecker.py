@@ -1,6 +1,7 @@
 import os
-import openpyxl
 from datetime import datetime
+
+import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.filters import FilterColumn, Filters
@@ -43,7 +44,7 @@ def main(fileName: str, progress_tracker=None):
                 # количество уникальных файлов (для заполнения).
                 # Для упрощения, можно оценить как сумму max_row по всем листам.
                 estimated_data_collection_steps = len(temp_sheets)
-                estimated_fill_steps = 0
+
                 unique_files_estimate = set()
                 for sheet_name in temp_sheets:
                     temp_ws = temp_wb[sheet_name]
@@ -164,9 +165,17 @@ def main(fileName: str, progress_tracker=None):
                         cell_obj.value = "Ошибка"
                         cell_obj.number_format = 'General'
 
-                    # Стили для существующего файла
-                    cell_obj.font = Font(color="0000FF", underline="single")  # Добавил underline для гиперссылок
-                    cell_obj.fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
+                    # Проверяем существование файла lighthouse.txt в той же директории, что и .nc/.h файл
+                    nc_file_dir = os.path.dirname(full_file_path)
+                    lighthouse_path = os.path.join(nc_file_dir, "lighthouse.txt")
+
+                    if os.path.exists(lighthouse_path):
+                        # Если lighthouse.txt существует, используем цвет 92D050
+                        cell_obj.fill = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
+                    else:
+                        # Если lighthouse.txt не существует, используем цвет 90EE90
+                        cell_obj.fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
+
                     # Исправлена логика границ
                     thin_side = Side(border_style="thin", color="000000")  # Используем более стандартные границы
                     cell_obj.border = Border(top=thin_side, bottom=thin_side, left=thin_side, right=thin_side)
@@ -239,7 +248,3 @@ def main(fileName: str, progress_tracker=None):
         print(f"Критическая ошибка в main ApplicationDataChecker: {e}")
         raise  # Перебрасываем исключение, чтобы GUI мог его поймать
 
-# if __name__ == '__main__':
-#     # Пример вызова без прогресс-трекера
-#     # main("ваш_файл.xlsx")
-#     pass

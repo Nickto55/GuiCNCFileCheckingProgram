@@ -258,7 +258,7 @@ class MainCNCprogrammeGUI:
         self.root.title("CNCFileCheckingProgram")
         self.root.geometry(f"700x{self.distanceY}")
         self.root.resizable(False, False)
-        self.operating_mode_var = StringVar(value="0")
+        self.operating_mode_var = StringVar(value="2")
         self.selection_gui_var = StringVar(value="Включён")
         self.selection_gui_bool = True
 
@@ -500,7 +500,6 @@ class MainCNCprogrammeGUI:
             thread = threading.Thread(target=lambda: self.run_program(total_steps))
             thread.daemon = True
             thread.start()
-        elif  self.operating_mode_var.get() == "1":
 
 
             send_notification("Программа завершена.",
