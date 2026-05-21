@@ -20,12 +20,6 @@ from useJson import JsonSave, JsonConfig
 def seconds_to_minutes_seconds(seconds):
     """
     Преобразует секунды в минуты и секунды.
-
-    Args:
-      seconds: Целое число, представляющее секунды.
-
-    Returns:
-      Кортеж из двух целых чисел: (минуты, секунды).
     """
     minutes = seconds // 60
     remaining_seconds = seconds % 60
