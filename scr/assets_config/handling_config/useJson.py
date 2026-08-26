@@ -3,7 +3,7 @@ import os
 import webbrowser
 from datetime import datetime
 
-import Config
+from  static.config import config_programm
 
 
 class Jsondir:
@@ -14,7 +14,7 @@ class Jsondir:
 
     def __init__(self, userOrCode: int):
         global directories
-        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".CNCDirCheckingProgram")
+        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs',".CNCDirCheckingProgram"))
         self.CONFIG_FILE_DIR = os.path.join(self.CONFIG_DIR, "directories.json")
 
         directories = Jsondir.load_directories(self)
@@ -29,7 +29,7 @@ class Jsondir:
         return 1
 
     def load_directories(self):
-        CONFIG_FILE_DIR = os.path.join(os.path.join(os.path.expanduser("~"), ".CNCDirCheckingProgram"),
+        CONFIG_FILE_DIR = os.path.join(os.path.join(os.path.expanduser("~"),os.path.join('configs',".CNCDirCheckingProgram")),
                                        "directories.json")
         # Загружаем существующие директории из файла
         if not os.path.exists(CONFIG_FILE_DIR):
@@ -153,7 +153,7 @@ class JsonSave:
     """
 
     def __init__(self):
-        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".CNCDirCheckingProgram")
+        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs',".CNCDirCheckingProgram"))
         self.file_path = os.path.join(self.CONFIG_DIR, "SaveDataFile.json")
         self.data = {}
 
@@ -225,9 +225,9 @@ class JsonConfig:
     """
 
     def __init__(self):
-        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".CNCDirCheckingProgram")
+        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs',".CNCDirCheckingProgram"))
         self.file_path = os.path.join(self.CONFIG_DIR, "Config_BdCncProgram.json")
-        self.data = Config.config
+        self.data = config_programm
         self._ensure_file_exists()
         self.load()
 
@@ -251,7 +251,7 @@ class JsonConfig:
             with open(self.file_path, 'r', encoding='utf-8') as f:
                 self.data = json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
-            self.data = Config.config
+            self.data = config_programm
 
     def save(self):
         """Сохраняет текущие данные в файл."""

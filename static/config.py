@@ -1,4 +1,4 @@
-config = {
+config_programm = {
     "Name Program": "CNCFielChekingProgram",
     "Name ouput automaticallyFile": "BD_CNCprogAutomatically",
     "Path for output automaticallyFile": "",
