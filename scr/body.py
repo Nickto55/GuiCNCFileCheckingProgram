@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-import time
 import plyer
 import threading
 import webbrowser
@@ -12,18 +11,10 @@ from datetime import date
 from tkinter.scrolledtext import ScrolledText
 from tkinter import ttk, messagebox, filedialog
 
-sys.path.append(
-    os.path.dirname(
-        os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-    )
-)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from scr.assets_config.handling_config.useJson import JsonConfig
-from scr.cnc_file_checking_program import run_program, today
+from scr.cnc_file_checking_program import run_program
 
 
 def seconds_to_minutes_seconds(seconds):
@@ -39,9 +30,8 @@ def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
     except Exception:
-        base_path = os.path.abspath("..")
-
-    return os.path.join(base_path, relative_path)
+        base_path = os.path.abspath(".")
+    return os.path.normpath(os.path.join(base_path, relative_path))
 
 
 change_dir_cb_bool = 0
@@ -142,12 +132,18 @@ class WindowFileNameManager:
         self.window.resizable(False, False)
 
         try:
-            icon_path = resource_path("../static/img/ico/gear.ico")
-            self.window.iconbitmap(icon_path)
+            icon_path = resource_path("/static/img/ico/gear.ico")
+            icon_image = tk.PhotoImage(file=icon_path)
+            self.window.iconphoto(False, icon_image)
         except Exception as e:
             print(f"Не удалось установить иконку: {e}")
+            try:
+                icon_path = resource_path("../static/img/ico/gear.ico")
+                self.window.iconbitmap(icon_path)
+            except Exception as e:
+                print(f"Не удалось установить иконку: {e}")
 
-    def returnRoot(self):
+    def return_root(self):
         return self.window
 
 
@@ -163,10 +159,16 @@ class WindowDirectoryManager:
         self.window.resizable(False, False)
 
         try:
-            icon_path = resource_path("../static/img/ico/dirBook.ico")
-            self.window.iconbitmap(icon_path)
+            icon_path = resource_path("/static/img/ico/dirBook.ico")
+            icon_image = tk.PhotoImage(file=icon_path)
+            self.window.iconphoto(False, icon_image)
         except Exception as e:
             print(f"Не удалось установить иконку: {e}")
+            try:
+                icon_path = resource_path("../static/img/ico/dirBook.ico")
+                self.window.iconbitmap(icon_path)
+            except Exception as e:
+                print(f"Не удалось установить иконку: {e}")
 
         self.window.transient(parent)
         self.window.grab_set()
@@ -208,7 +210,6 @@ class WindowDirectoryManager:
         )
         add_btn.grid(row=0, column=5)
 
-        # Фрейм для списка директорий
         list_frame = ttk.LabelFrame(self.window, text="Сохранённые директории", padding=10)
         list_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
@@ -236,7 +237,6 @@ class WindowDirectoryManager:
         self.tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Кнопки управления
         button_frame = ttk.Frame(self.window)
         button_frame.pack(fill="x", padx=10, pady=5)
 
@@ -383,10 +383,16 @@ class MainCNCprogrammeGUI:
         self.selection_gui_bool = True
 
         try:
-            icon_path = resource_path("../static/img/ico/iconca.ico")
-            self.root.iconbitmap(icon_path)
+            icon_path = os.path.normpath(r"\iconca.ico")
+            icon_image = tk.PhotoImage(file=icon_path)
+            self.root.iconphoto(False, icon_image)
         except Exception as e:
-            print(f"Не удалось установить иконку: {e}")
+            print(f"Не удалось установитьмсччмсчмс иконку: {e}")
+            try:
+                icon_path = resource_path("../static/img/ico/iconca.ico")
+                self.root.iconbitmap(icon_path)
+            except Exception as e:
+                print(f"Не удалось установить иконку: {e}")
 
         self.dir_manager = GuiDirManager(self.root)
 
@@ -464,10 +470,16 @@ class MainCNCprogrammeGUI:
         info_window.overrideredirect(True)
 
         try:
-            icon_path = resource_path("../static/img/ico/gear.ico")
-            info_window.iconbitmap(icon_path)
+            icon_path = resource_path("/static/img/ico/gear.ico")
+            icon_image = tk.PhotoImage(file=icon_path)
+            info_window.iconphoto(False, icon_image)
         except Exception as e:
             print(f"Не удалось установить иконку: {e}")
+            try:
+                icon_path = resource_path("../static/img/ico/gear.ico")
+                info_window.iconbitmap(icon_path)
+            except Exception as e:
+                print(f"Не удалось установить иконку: {e}")
 
         if parent:
             parent_x = parent.winfo_x()
@@ -490,14 +502,14 @@ class MainCNCprogrammeGUI:
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         main_frame.bind(
-            "<B1-Motion>",
-            lambda e: info_window.geometry("+{0}+{1}".format(e.x_root, e.y_root))
+            "<B1-Motion>"
+            , lambda e: info_window.geometry("+{0}+{1}".format(e.x_root, e.y_root))
         )
 
         title_label = ttk.Label(
-            main_frame,
-            text="GuiCNCFileCheckingProgram",
-            font=("Arial", 14, "bold")
+            main_frame
+            , text="GuiCNCFileCheckingProgram"
+            , font=("Arial", 14, "bold")
         )
         title_label.pack(pady=(0, 10))
 
@@ -507,10 +519,10 @@ class MainCNCprogrammeGUI:
         )
 
         description_label = ttk.Label(
-            main_frame,
-            text=description_text,
-            wraplength=550,
-            justify=tk.LEFT
+            main_frame
+            , text=description_text
+            , wraplength=550
+            , justify=tk.LEFT
         )
         description_label.pack(pady=(0, 15))
 
@@ -530,17 +542,17 @@ class MainCNCprogrammeGUI:
 
         components_text_widget = ScrolledText(
             components_frame,
-            wrap=tk.WORD,
-            width=60,
-            height=15,
-            font=("Arial", 10)
+            wrap=tk.WORD
+            , width=60
+            , height=15
+            , font=("Arial", 10)
         )
 
         components_text_widget.pack(
-            fill=tk.BOTH,
-            expand=True,
-            padx=5,
-            pady=5
+            fill=tk.BOTH
+            , expand=True
+            , padx=5
+            , pady=5
         )
 
         components_text_widget.insert(tk.END, components_text)
@@ -550,10 +562,10 @@ class MainCNCprogrammeGUI:
         notebook.add(menu_frame, text="Меню")
 
         menu_tree = ttk.Treeview(
-            menu_frame,
-            columns=("Описание",),
-            show="tree headings",
-            height=15
+            menu_frame
+            , columns=("Описание",)
+            , show="tree headings"
+            , height=15
         )
 
         menu_tree.heading("#0", text="Пункт меню")
@@ -563,61 +575,61 @@ class MainCNCprogrammeGUI:
         menu_tree.column("Описание", width=350)
 
         settings = menu_tree.insert(
-            "",
-            "end",
-            text="1. Settings",
-            open=True
+            ""
+            , "end"
+            , text="1. Settings"
+            , open=True
         )
 
         menu_tree.insert(
-            settings,
-            "end",
-            text="1. Отображать ход выполнения",
-            values=("Включает вывод логов и процесса выполнения программы",)
+            settings
+            , "end"
+            , text="1. Отображать ход выполнения"
+            , values=("Включает вывод логов и процесса выполнения программы",)
         )
 
         menu_tree.insert(
-            settings,
-            "end",
-            text="2. Имя файла",
-            values=("Позволяет просмотреть или задать имя исполняемого файла",)
+            settings
+            , "end"
+            , text="2. Имя файла"
+            , values=("Позволяет просмотреть или задать имя исполняемого файла",)
         )
 
         menu_tree.insert(
-            settings,
-            "end",
-            text="3. Run config json",
-            values=("Открывает конфигурационный JSON-файл с указанием директорий",)
+            settings
+            , "end"
+            , text="3. Run config json"
+            , values=("Открывает конфигурационный JSON-файл с указанием директорий",)
         )
 
         saved_dirs = menu_tree.insert(
-            "",
-            "end",
-            text="2. Saved Directories",
-            values=("Просмотр и настройка списка сохранённых директорий",)
+            ""
+            , "end"
+            , text="2. Saved Directories"
+            , values=("Просмотр и настройка списка сохранённых директорий",)
         )
 
         menu_tree.insert(
-            "",
-            "end",
-            text="3. Help",
-            values=("help",)
+            ""
+            , "end"
+            , text="3. Help"
+            , values=("help",)
         )
 
         menu_tree.pack(
-            fill=tk.BOTH,
-            expand=True,
-            padx=5,
-            pady=5
+            fill=tk.BOTH
+            , expand=True
+            , padx=5
+            , pady=5
         )
 
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(10, 0))
 
         close_button = ttk.Button(
-            button_frame,
-            text="Закрыть",
-            command=info_window.destroy
+            button_frame
+            , text="Закрыть"
+            , command=info_window.destroy
         )
         close_button.pack(side=tk.RIGHT)
 
@@ -635,10 +647,10 @@ class MainCNCprogrammeGUI:
 
             self.progress_label.grid(row=1, column=0)
             self.log_frame.place(
-                x=10,
-                y=distanceY,
-                height=650 - distanceY,
-                width=680
+                x=10
+                , y=distanceY
+                , height=650 - distanceY
+                , width=680
             )
 
         self.log_frame_Bool = not self.log_frame_Bool
@@ -650,8 +662,8 @@ class MainCNCprogrammeGUI:
         filename = filedialog.asksaveasfilename(
             defaultextension=".xlsx",
             filetypes=[
-                ("Excel files", "*.xlsx"),
-                ("All files", "*.*")
+                ("Excel files", "*.xlsx")
+                , ("All files", "*.*")
             ],
             title="Выберите файл для сохранения"
         )
@@ -678,8 +690,8 @@ class MainCNCprogrammeGUI:
 
         if mode == "0":
             messagebox.showwarning(
-                "Внимание",
-                "Перед началом выберете режим работы!"
+                "Внимание"
+                , "Перед началом выберете режим работы!"
             )
             return
 
@@ -694,16 +706,16 @@ class MainCNCprogrammeGUI:
             self.progress_label.grid()
 
             if not any([
-                self.run_cnc_checking.get(),
-                self.run_data_checker.get(),
-                self.run_author_verification.get()
+                self.run_cnc_checking.get()
+                , self.run_data_checker.get()
+                , self.run_author_verification.get()
             ]):
                 self.progress.place_forget()
                 self.progress_label.grid_remove()
 
                 messagebox.showwarning(
-                    "Предупреждение",
-                    "Пожалуйста, выберите хотя бы одну программу для запуска"
+                    "Предупреждение"
+                    , "Пожалуйста, выберите хотя бы одну программу для запуска"
                 )
                 return
 
@@ -719,43 +731,43 @@ class MainCNCprogrammeGUI:
 
             def progress_callback(percent, text):
                 self.root.after(
-                    0,
-                    self.update_progress,
-                    percent,
-                    text
+                    0
+                    , self.update_progress
+                    , percent
+                    , text
                 )
 
             def log_callback(message):
                 self.root.after(
-                    0,
-                    self.log_message,
-                    message
+                    0
+                    , self.log_message
+                    , message
                 )
 
             def worker():
-                try:
-                    result = run_program(
-                        run_cnc=run_cnc,
-                        run_data=run_data,
-                        run_author=run_author,
-                        output_file=output_file,
-                        directories=directories,
-                        log_callback=log_callback,
-                        progress_callback=progress_callback
-                    )
+                # try:
+                result = run_program(
+                    run_cnc=run_cnc
+                    , run_data=run_data
+                    , run_author=run_author
+                    , output_file=output_file
+                    , directories=directories
+                    , log_callback=log_callback
+                    , progress_callback=progress_callback
+                )
 
-                    self.root.after(
-                        0,
-                        self.on_program_success,
-                        result
-                    )
+                self.root.after(
+                    0
+                    , self.on_program_success
+                    , result
+                )
 
-                except Exception as e:
-                    self.root.after(
-                        0,
-                        self.on_program_error,
-                        str(e)
-                    )
+                # except Exception as e:
+                #     self.root.after(
+                #         0
+                #         , self.on_program_error
+                #         , str(e)
+                #     )
 
             thread = threading.Thread(target=worker)
             thread.daemon = True
@@ -791,9 +803,9 @@ class MainCNCprogrammeGUI:
         )
 
         self.timer_label.place(
-            x=5,
-            y=self.maxDistanceY,
-            height=24
+            x=5
+            , y=self.maxDistanceY
+            , height=24
         )
 
         file_to_open = result.get("file_to_open", "")
@@ -806,14 +818,14 @@ class MainCNCprogrammeGUI:
             notification_file_name = self.get_output_filename()
 
         send_notification(
-            "Программа завершена.",
-            f"Программа ToolCheckerProgram завершена, данные сохранены в файл: {notification_file_name}",
-            15
+            "Программа завершена."
+            , f"Программа ToolCheckerProgram завершена, данные сохранены в файл: {notification_file_name}"
+            , 15
         )
 
         self.root.after(
-            2000,
-            lambda: self.update_progress(0, "Готово")
+            2000
+            , lambda: self.update_progress(0, "Готово")
         )
 
     def on_program_error(self, error_msg):
@@ -827,8 +839,8 @@ class MainCNCprogrammeGUI:
         messagebox.showerror("Ошибка", error_msg)
 
         self.root.after(
-            2000,
-            lambda: self.update_progress(0, "Готово")
+            2000
+            , lambda: self.update_progress(0, "Готово")
         )
 
     def update_progress(self, value, text):
@@ -858,78 +870,78 @@ class MainCNCprogrammeGUI:
     def create_widgets(self):
         global change_dir_cb_bool
 
-        offsetX = 5
-        offsetY = 0
-        maxDistanceY = self.maxDistanceY
-        distanseY = 25
+        offset_x = 5
+        offset_y = 0
+        max_distance_y = self.maxDistanceY
+        distanse_y = 25
 
         # Фрейм для выбора программ
         program_frame = ttk.LabelFrame(
-            self.root,
-            text="Выберите программы для запуска:",
-            padding=10
+            self.root
+            , text="Выберите программы для запуска:"
+            , padding=10
         )
         program_frame.place(
-            x=offsetX,
-            y=offsetY,
-            height=100,
-            width=330
+            x=offset_x
+            , y=offset_y
+            , height=100
+            , width=330
         )
 
         cnc_cb = ttk.Checkbutton(
-            program_frame,
-            text="Программа обработки директорий",
-            variable=self.run_cnc_checking
+            program_frame
+            , text="Программа обработки директорий"
+            , variable=self.run_cnc_checking
         )
-        cnc_cb.place(x=offsetX, y=0)
+        cnc_cb.place(x=offset_x, y=0)
 
         data_cb = ttk.Checkbutton(
-            program_frame,
-            text="Программа создания сводной таблицы",
-            variable=self.run_data_checker
+            program_frame
+            , text="Программа создания сводной таблицы"
+            , variable=self.run_data_checker
         )
-        data_cb.place(x=offsetX, y=offsetY + distanseY)
+        data_cb.place(x=offset_x, y=offset_y + distanse_y)
 
         author_cb = ttk.Checkbutton(
-            program_frame,
-            text="Программа отображения авторов nc и h файлов",
-            variable=self.run_author_verification
+            program_frame
+            , text="Программа отображения авторов nc и h файлов"
+            , variable=self.run_author_verification
         )
-        author_cb.place(x=offsetX, y=offsetY + distanseY * 2)
+        author_cb.place(x=offset_x, y=offset_y + distanse_y * 2)
 
         operating_mode = ttk.LabelFrame(
-            self.root,
-            text="Выберите режим работы:",
-            padding=10
+            self.root
+            , text="Выберите режим работы:"
+            , padding=10
         )
         operating_mode.place(
-            x=offsetX + 530,
-            y=offsetY,
-            height=100,
-            width=160
+            x=offset_x + 530
+            , y=offset_y
+            , height=100
+            , width=160
         )
 
         operating_mode_chose = ttk.Radiobutton(
-            operating_mode,
-            text="Ничего",
-            value="0",
-            variable=self.operating_mode_var
+            operating_mode
+            , text="Ничего"
+            , value="0"
+            , variable=self.operating_mode_var
         )
         operating_mode_chose.grid(row=0, column=0, sticky="w")
 
         operating_mode_automatically = ttk.Radiobutton(
-            operating_mode,
-            text="Только различные",
-            value="1",
-            variable=self.operating_mode_var
+            operating_mode
+            , text="Только различные"
+            , value="1"
+            , variable=self.operating_mode_var
         )
         operating_mode_automatically.grid(row=1, column=0, sticky="w")
 
         operating_mode_full = ttk.Radiobutton(
-            operating_mode,
-            text="Всё",
-            value="2",
-            variable=self.operating_mode_var
+            operating_mode
+            , text="Всё"
+            , value="2"
+            , variable=self.operating_mode_var
         )
         operating_mode_full.grid(row=2, column=0, sticky="w")
 
@@ -939,31 +951,31 @@ class MainCNCprogrammeGUI:
 
         # Фрейм для настроек директорий
         dir_frame = ttk.LabelFrame(
-            self.root,
-            text="Настройки директорий",
-            padding=10
+            self.root
+            , text="Настройки директорий"
+            , padding=10
         )
         dir_frame.pack(fill="x", padx=10, pady=5)
 
         # Прогресс-бар
         progress_frame = ttk.Frame(self.root)
         progress_frame.place(
-            x=offsetX,
-            y=maxDistanceY,
-            height=60
+            x=offset_x
+            , y=max_distance_y
+            , height=60
         )
 
         self.progress = ttk.Progressbar(
-            progress_frame,
-            mode="determinate",
-            length=600,
-            maximum=100
+            progress_frame
+            , mode="determinate"
+            , length=600
+            , maximum=100
         )
         self.progress.place(x=5, y=self.maxDistanceY - 5)
 
         self.progress_label = ttk.Label(
-            progress_frame,
-            text="Готово"
+            progress_frame
+            , text="Готово"
         )
         self.progress_label.grid(row=1, column=0)
 
@@ -971,62 +983,61 @@ class MainCNCprogrammeGUI:
         self.progress_label.grid_remove()
 
         self.timer_label = Label(
-            self.root,
-            textvariable=self.timerWorkProg
+            self.root
+            , textvariable=self.timerWorkProg
         )
         self.timer_label.place(
-            x=5,
-            y=self.maxDistanceY - 1,
-            height=24
+            x=5
+            , y=self.maxDistanceY - 1
+            , height=24
         )
         self.timer_label.place_forget()
 
-        # Кнопка запуска
         run_btn = ttk.Button(
-            self.root,
-            text="Начать",
-            command=self.start_program
+            self.root
+            , text="Начать"
+            , command=self.start_program
         )
         run_btn.place(
-            x=615,
-            y=maxDistanceY - 1,
-            height=24
+            x=615
+            , y=max_distance_y - 1
+            , height=24
         )
 
         # Текстовое поле для логов
         self.log_frame = ttk.LabelFrame(
-            self.root,
-            text="Лог выполнения",
-            padding=5
+            self.root
+            , text="Лог выполнения"
+            , padding=5
         )
         self.log_frame.place(x=5, y=168)
 
         self.log_text = tk.Text(
-            self.log_frame,
-            height=12,
-            wrap="word"
+            self.log_frame
+            , height=12
+            , wrap="word"
         )
 
         scrollbar = ttk.Scrollbar(
-            self.log_frame,
-            orient="vertical",
-            command=self.log_text.yview
+            self.log_frame
+            , orient="vertical"
+            , command=self.log_text.yview
         )
 
         self.log_text.configure(yscrollcommand=scrollbar.set)
 
         self.log_text.pack(
-            side="left",
-            fill="both",
-            expand=True
+            side="left"
+            , fill="both"
+            , expand=True
         )
 
         scrollbar.pack(side="right", fill="y")
 
         clear_log_btn = ttk.Button(
-            self.log_text,
-            text="Очистить лог",
-            command=self.clear_log
+            self.log_text
+            , text="Очистить лог"
+            , command=self.clear_log
         )
         clear_log_btn.pack(pady=5, anchor="e")
 
@@ -1047,30 +1058,30 @@ class MainCNCprogrammeGUI:
             except Exception:
                 self.file_window = None
 
-        classRoot = WindowFileNameManager(self.root)
-        self.file_window = classRoot.returnRoot()
+        class_root = WindowFileNameManager(self.root)
+        self.file_window = class_root.return_root()
 
         def on_close():
             self.file_window = None
-            classRoot.window.destroy()
+            class_root.window.destroy()
 
         self.file_window.protocol("WM_DELETE_WINDOW", on_close)
 
         file_frame = ttk.LabelFrame(
-            self.file_window,
-            text="Имя выходного файла",
-            padding=10
+            self.file_window
+            , text="Имя выходного файла"
+            , padding=10
         )
         file_frame.pack(fill="x", padx=10, pady=5)
 
         self.output_file_entry = ttk.Entry(
-            file_frame,
-            textvariable=self.custom_output_file
+            file_frame
+            , textvariable=self.custom_output_file
         )
         self.output_file_entry.pack(
-            fill="x",
-            side="left",
-            expand=True
+            fill="x"
+            , side="left"
+            , expand=True
         )
 
         output_file = f"BD_CNCprog_{date.today()}"
@@ -1082,9 +1093,9 @@ class MainCNCprogrammeGUI:
         self.output_file_entry.insert(0, output_file)
 
         browse_btn = ttk.Button(
-            file_frame,
-            text="Выбрать файл",
-            command=self.browse_file
+            file_frame
+            , text="Выбрать файл"
+            , command=self.browse_file
         )
         browse_btn.pack(side="right", padx=(5, 0))
 
@@ -1093,8 +1104,8 @@ class MainCNCprogrammeGUI:
         Запрос на открытие файла в основном потоке.
         """
         if messagebox.askyesno(
-            "Открыть файл",
-            "Обработка завершена. Хотите открыть файл?"
+                "Открыть файл",
+                "Обработка завершена. Хотите открыть файл?"
         ):
             if file_path and os.path.exists(file_path):
                 webbrowser.open(file_path)

@@ -56,9 +56,9 @@ class ReceiverDataBase:
         except (json.JSONDecodeError, FileNotFoundError):
             print("Config файл пуст")
 
-    def recoveryLoseKeyAndValue(self):
+    def recovery_lose_key_and_value(self):
         """
-        Восстанавливает отсутствующие ключи и значения из шаблона configProgram.
+        Восстанавливает отсутствующие  ключи и значения из шаблона configProgram.
         Сравнивает текущие данные с шаблоном и добавляет недостающие элементы.
         """
 

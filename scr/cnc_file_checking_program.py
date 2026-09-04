@@ -6,7 +6,10 @@ from datetime import date
 from scr.assets_excel.enters.excel_enter import ExcelEnter
 from scr.handling.author_verification_program import main as author_main
 from scr.handling.application_data_checker import main as application_data_checker_main
-from scr.assets_database.json_database.handling_database.handler_database_program import DatabaseProgrammData
+
+# from scr.assets_database.json_database.handling_database.handler_json_database_program import DatabaseProgrammData
+from scr.assets_database.sqlite_database.handling_database.handler_sqlite_database_program import \
+    SQLiteDatabaseProgrammData
 
 list_spli = []
 recursion_depth = 2
@@ -26,11 +29,11 @@ class ProgressTracker:
     """
 
     def __init__(
-            self,
-            progress_callback=None,
-            log_callback=None,
-            segment_start_percent=0.0,
-            segment_size_percent=100.0
+            self
+            , progress_callback=None
+            , log_callback=None
+            , segment_start_percent=0.0
+            , segment_size_percent=100.0
     ):
         self.progress_callback = progress_callback
         self.log_callback = log_callback
@@ -103,13 +106,11 @@ class LogicCncProgram:
         self.list_spli = []
         self.recursion_depth = 2
         self.today = date.today()
-        self.database_json_program = DatabaseProgrammData()
 
     def collect_subdirectories(
-            self,
-            root_dir_list: list,
-            progress_tracker=None,
-            lastTimeAuvtoSearchBool: bool = False
+            self
+            , root_dir_list: list
+            , progress_tracker=None
     ):
         result = {}
 
@@ -126,8 +127,8 @@ class LogicCncProgram:
         for dir_name in root_dir_list:
             if progress_tracker:
                 progress_tracker.update(
-                    count,
-                    f"Обработка директории: {os.path.basename(dir_name)}"
+                    count
+                    , f"Обработка директории: {os.path.basename(dir_name)}"
                 )
 
             project_path = dir_name
@@ -144,9 +145,9 @@ class LogicCncProgram:
                         if os.path.isdir(full_path):
                             if full_path.count("\\") == self.recursion_depth:
                                 subdirs.append({
-                                    "name": item,
-                                    "content": "",
-                                    "full_path": full_path
+                                    "name": item
+                                    , "content": ""
+                                    , "full_path": full_path
                                 })
 
                             recurse(full_path)
@@ -154,9 +155,9 @@ class LogicCncProgram:
                         if full_path.count("\\") == self.recursion_depth + 1:
                             parent_dir = os.path.basename(os.path.dirname(full_path))
                             subdirs.append({
-                                "name": parent_dir,
-                                "content": item,
-                                "full_path": full_path
+                                "name": parent_dir
+                                , "content": item
+                                , "full_path": full_path
                             })
 
                 except PermissionError:
@@ -169,20 +170,20 @@ class LogicCncProgram:
 
         if progress_tracker:
             progress_tracker.update(
-                len(root_dir_list),
-                "Обработка директорий завершена"
+                len(root_dir_list)
+                , "Обработка директорий завершена"
             )
 
         return result
 
     def main_cnc_file_checking_program(
-            self,
-            list_main_repo: list,
-            chose_user: int,
-            twoProgramm: int,
-            progress_tracker=None,
-            countProg=1,
-            output_file: str = None
+            self
+            , list_main_repo: list
+            , chose_user: int
+            , two_programm: int
+            , progress_tracker=None
+            , count_prog=1
+            , output_file: str = None
     ):
         """
         Основная программа обработки директорий.
@@ -190,13 +191,11 @@ class LogicCncProgram:
         Возвращает полный путь к созданному Excel-файлу
         или None, если файл не был создан.
         """
+        print([chose_user, count_prog])
 
         current_directory = os.getcwd()
 
-        CONFIG_DIR = os.path.join(
-            os.path.expanduser("~"),
-            ".CNCFileCheckingProgram"
-        )
+        config_dir = os.path.join(os.path.expanduser("~"), ".CNCFileCheckingProgram")
 
         def name_user_see(config_path):
             user_name = ""
@@ -214,8 +213,7 @@ class LogicCncProgram:
 
             return user_name
 
-        # Функция оставлена для совместимости с исходной логикой.
-        name_user_see(CONFIG_DIR)
+        name_user_see(config_dir)
 
         if output_file:
             output_file = str(output_file).strip()
@@ -241,7 +239,7 @@ class LogicCncProgram:
         if not list_main_repo:
             print("Не указано ни одного репозитория.")
 
-            if twoProgramm:
+            if two_programm:
                 try:
                     wb = openpyxl.Workbook()
 
@@ -268,70 +266,91 @@ class LogicCncProgram:
         )
         # self.filling_database(data)
         try:
+            print('full_output_path', full_output_path)
             ExcelEnter().save_to_excel(data, full_output_path)
         except Exception as e:
-            print(f"Ошибка при сохранении файла в mainCNCFileCheckingProgram: {e}")
+            print(
+                f"cnc_file_checking_program. main_cnc_file_checking_program.Ошибка при сохранении файла в mainCNCFileCheckingProgram: {e}")
             return None
 
         return full_output_path
 
-    def filling_database(self, data):
+    @staticmethod
+    def filling_database(data):
         """
         Функция заполняет базу данных
         """
-        """JSON"""
-
         for name_machine_directory, data_machine_directory in data.items():
             for data_dse in data_machine_directory:
                 dse_name = data_dse.get('name', '')
                 content = data_dse.get('content', '')
-                # link = data_dse.get('full_path','')
-                link = str(data_dse.get('full_path', ''))
+                try:
+                    link = os.path.normpath(str(data_dse.get('full_path', '')))  # Полный путь
+                except:
+                    link = str(data_dse.get('full_path', ''))  # Полный путь
+                fm_file = data_dse.get('fm_file', '')
+                files_without_extension = data_dse.get('files_without_extension', '')
+                last_modified_date = data_dse.get('last_modified_date', '')
+                kb = data_dse.get('kb', '')
 
-                name_dse_directory = link[
-                                     link.index(name_machine_directory) + len(name_machine_directory) + 1:link.index(
-                                         dse_name) - 1]
+                normalized_link = link.replace('\\', '/')
+                normalized_machine = name_machine_directory.replace('\\', '/')
 
-                self.database_json_program.set_program_db(
+                name_dse_directory = ""
+                try:
+                    start_idx = normalized_link.index(normalized_machine) + len(normalized_machine) + 1
+
+                    end_idx = normalized_link.index(dse_name, start_idx) - 1
+
+                    if start_idx < end_idx:
+                        name_dse_directory = normalized_link[start_idx:end_idx]
+                except ValueError:
+                    pass
+
+                database_json_program = SQLiteDatabaseProgrammData()
+                database_json_program.set_program_db(
                     name_machine_directory=name_machine_directory
                     , dse_directory=name_dse_directory
                     , dse_name=dse_name
                     , content=content
-                    , link=link
+                    , link=normalized_link
+                    , fm_file=fm_file
+                    , files_without_extension=files_without_extension
+                    , last_modified_date=last_modified_date
+                    , kb=kb
                 )
 
 
 def main_cnc_file_checking_program(
-        list_main_repo: list,
-        chose_user: int,
-        twoProgramm: int,
-        progress_tracker=None,
-        countProg=1,
-        output_file: str = None
+        list_main_repo: list
+        , chose_user: int
+        , two_programm: int
+        , progress_tracker=None
+        , count_prog=1
+        , output_file: str = None
 ):
     """
     Совместимая обёртка для вызова основной программы обработки директорий.
     """
-    app = LogicCncProgram()
 
-    return app.main_cnc_file_checking_program(
-        list_main_repo=list_main_repo,
-        chose_user=chose_user,
-        twoProgramm=twoProgramm,
-        progress_tracker=progress_tracker,
-        countProg=countProg,
-        output_file=output_file
+    return LogicCncProgram().main_cnc_file_checking_program(
+        list_main_repo=list_main_repo
+        , chose_user=chose_user
+        , two_programm=two_programm
+        , progress_tracker=progress_tracker
+        , count_prog=count_prog
+        , output_file=output_file
     )
 
 
 def run_program(
-        run_cnc: bool,
-        run_data: bool,
-        run_author: bool,
-        output_file: str,
-        directories: list,
-        log_callback=None,
-        progress_callback=None
+        run_cnc: bool
+        , run_data: bool
+        , run_author: bool
+        , output_file: str
+        , directories: list
+        , log_callback=None
+        , progress_callback=None
 ):
     """
     Запуск выбранных программ.
@@ -351,9 +370,9 @@ def run_program(
             progress_callback(percent, text)
 
     total_steps = sum([
-        bool(run_cnc),
-        bool(run_data),
-        bool(run_author)
+        bool(run_cnc)
+        , bool(run_data)
+        , bool(run_author)
     ])
 
     start_time = time.time()
@@ -402,10 +421,10 @@ def run_program(
         _log("Выполнение программы обработки директорий...")
 
         tracker = ProgressTracker(
-            progress_callback=_progress,
-            log_callback=_log,
-            segment_start_percent=segment_start_percent,
-            segment_size_percent=segment_size_percent
+            progress_callback=_progress
+            , log_callback=_log
+            , segment_start_percent=segment_start_percent
+            , segment_size_percent=segment_size_percent
         )
 
         if not directories:
@@ -422,12 +441,12 @@ def run_program(
 
         else:
             returned_file = logic.main_cnc_file_checking_program(
-                list_main_repo=directories,
-                chose_user=1,
-                twoProgramm=1 if run_data else 0,
-                progress_tracker=tracker,
-                countProg=1,
-                output_file=output_file
+                list_main_repo=directories
+                , chose_user=1
+                , two_programm=1 if run_data else 0
+                , progress_tracker=tracker
+                , count_prog=1
+                , output_file=output_file
             )
 
             if returned_file is None:
@@ -448,39 +467,37 @@ def run_program(
         _log("Создание сводной таблицы...")
 
         tracker = ProgressTracker(
-            progress_callback=_progress,
-            log_callback=_log,
-            segment_start_percent=segment_start_percent,
-            segment_size_percent=segment_size_percent
+            progress_callback=_progress
+            , log_callback=_log
+            , segment_start_percent=segment_start_percent
+            , segment_size_percent=segment_size_percent
         )
 
-        try:
-            full_output_path = application_data_checker_main(
-                output_file
-                , progress_tracker= tracker
-            )
+        # try:
+        full_output_path = application_data_checker_main(
+            output_file
+            , progress_tracker=tracker
+        )
 
-            _log("Обработка завершена. Лист 'ДСЕ по станкам' создан.")
+        _log("Обработка завершена. Лист 'ДСЕ по станкам' создан.")
 
-            _progress(
-                segment_start_percent + segment_size_percent,
-                "Создание сводных таблиц завершено"
-            )
+        _progress(
+            segment_start_percent + segment_size_percent,
+            "Создание сводных таблиц завершено"
+        )
 
-            if isinstance(full_output_path, str) and full_output_path:
-                result_file = full_output_path
+        if isinstance(full_output_path, str) and full_output_path:
+            result_file = full_output_path
 
-        except Exception as e:
-            error_msg = f"Ошибка в программе создания сводных таблиц: {str(e)}"
-
-            _log(error_msg)
-
-            _progress(
-                segment_start_percent + segment_size_percent,
-                f"Ошибка в сводных таблицах: {type(e).__name__}"
-            )
-
-            raise
+        # except Exception as e:
+        #     error_msg = f"Ошибка в программе создания сводных таблиц: {str(e)}"
+        #
+        #     _log(error_msg)
+        #
+        #     _progress(
+        #         segment_start_percent + segment_size_percent,
+        #         f"Ошибка в сводных таблицах: {type(e).__name__}"
+        #     )
 
     # Шаг 3: Программа отображения авторов
     if run_author:
@@ -494,15 +511,19 @@ def run_program(
         _log("Выполнение программы отображения авторов...")
 
         tracker = ProgressTracker(
-            progress_callback=_progress,
-            log_callback=_log,
-            segment_start_percent=segment_start_percent,
-            segment_size_percent=segment_size_percent
+            progress_callback=_progress
+            , log_callback=_log
+            , segment_start_percent=segment_start_percent
+            , segment_size_percent=segment_size_percent
 
         )
 
         try:
-            author_result = author_main(output_file, tracker)
+            author_result = author_main(
+                excel_file=output_file
+                , db_handler=logic
+                , progress_tracker=tracker
+            )
 
             _log("Программа отображения авторов завершена!")
 
@@ -544,15 +565,12 @@ def run_program(
 
 
 if __name__ == "__main__":
-    # Пример консольного запуска без GUI.
-    # Раскомментируйте и укажите свои пути при необходимости.
-
     app = LogicCncProgram()
-
     # app.collect_subdirectories(
     #     root_dir_list=[
-    #         r"C:\Users\yakovlev_nd\Desktop\Tests\CNCFileCheckingProgram\Dashid",
-    #         r"C:\Users\yakovlev_nd\Desktop\Tests\CNCFileCheckingProgram\HAAS"
+    #         r'C:\Users\yakovlev_nd\Desktop\Tests\CNCFileCheckingProgram\Dashid',
+    #
+    #         r'C:\Users\yakovlev_nd\Desktop\Tests\CNCFileCheckingProgram\HAAS'
     #     ],
     #     progress_tracker=None,
     #     lastTimeAuvtoSearchBool=True

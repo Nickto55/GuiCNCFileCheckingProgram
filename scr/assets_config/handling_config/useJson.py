@@ -3,23 +3,22 @@ import os
 import webbrowser
 from datetime import datetime
 
-from  static.config import config_programm
+from static.config import config_programm
 
 
 class Jsondir:
     """
     Конфиг для сохранения директорий
     """
-    directories: str
 
-    def __init__(self, userOrCode: int):
-        global directories
-        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs',".CNCDirCheckingProgram"))
+    def __init__(self, user_or_code: int, name_file_db=None):
+
+        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs', ".CNCDirCheckingProgram"))
         self.CONFIG_FILE_DIR = os.path.join(self.CONFIG_DIR, "directories.json")
 
-        directories = Jsondir.load_directories(self)
+        self.directories = self.load_directories()
 
-        Jsondir.mainUseJson(self, userOrCode)
+        Jsondir.main_use_json(self, user_or_code)
 
     def create_config_dir(self):
 
@@ -28,13 +27,14 @@ class Jsondir:
             return 0
         return 1
 
-    def load_directories(self):
-        CONFIG_FILE_DIR = os.path.join(os.path.join(os.path.expanduser("~"),os.path.join('configs',".CNCDirCheckingProgram")),
-                                       "directories.json")
-        # Загружаем существующие директории из файла
-        if not os.path.exists(CONFIG_FILE_DIR):
+    @staticmethod
+    def load_directories():
+        config_file_dir = os.path.join(
+            os.path.join(os.path.expanduser("~"), os.path.join('configs', ".CNCDirCheckingProgram")),
+            "directories.json")
+        if not os.path.exists(config_file_dir):
             return {}
-        with open(CONFIG_FILE_DIR, 'r', encoding='utf-8') as f:
+        with open(config_file_dir, 'r', encoding='utf-8') as f:
             try:
 
                 return json.load(f)
@@ -47,7 +47,8 @@ class Jsondir:
         with open(self.CONFIG_FILE_DIR, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-    def get_directory_info(self):
+    @staticmethod
+    def get_directory_info():
         while True:
             path = input(f"Введите полный путь к директории: ").strip()
             if os.path.isdir(path):
@@ -56,8 +57,9 @@ class Jsondir:
                 print(f"Неверный путь. Убедитесь, что путь существует и это директория.")
         return os.path.basename(path), path
 
-    def list_directories(self, directories, userOrCode):  # Выводит список сохранённых директорий
-        if not userOrCode:
+    @staticmethod
+    def list_directories(directories, user_or_code):  # Выводит список сохранённых директорий
+        if not user_or_code:
             if not directories:
                 print(f"Список директорий пуст.")
                 return ""
@@ -80,7 +82,7 @@ class Jsondir:
             print(f"Нет записей для удаления.")
             return
 
-        Jsondir.list_directories(self, directories, 0)
+        Jsondir.list_directories(directories, 0)
 
         try:
             choice = int(input(f"Введите номер директории, которую хотите удалить: "))
@@ -96,11 +98,12 @@ class Jsondir:
             print(f"Пожалуйста, введите число.")
 
     def code(self):
-        directories = Jsondir.load_directories(self)
-        returnu = Jsondir.list_directories(self, directories, 1)
+        directories = self.load_directories()
+        returnu = Jsondir.list_directories(directories, 1)
         return returnu
 
-    def mainUseJson(self, userOrCode: int):
+    def main_use_json(self, user_or_code: int):
+
         def user():
             while True:
                 print(
@@ -108,19 +111,19 @@ class Jsondir:
                 choice = input(f"Выберите действие (1/2/3/4/5): ").strip()
 
                 if choice == "1":
-                    name, path = Jsondir.get_directory_info(self)
-                    if name in directories:
+                    name, path = Jsondir.get_directory_info()
+                    if name in self.directories:
                         print(f"Директория с таким названием уже существует.")
                     else:
-                        directories[name] = path
-                        Jsondir.save_directories(self, directories)
+                        self.directories[name] = path
+                        Jsondir.save_directories(self, self.directories)
                         print(f"Директория успешно добавлена.")
 
                 elif choice == "2":
-                    for i in Jsondir.list_directories(self, directories, 0):
+                    for i in Jsondir.list_directories(self.directories, 0):
                         print(i)
                 elif choice == "3":
-                    Jsondir.delete_directory(self, directories)
+                    Jsondir.delete_directory(self, self.directories)
                 elif choice == "4":
                     print(f"Выход из программы.")
                     print()
@@ -133,7 +136,7 @@ class Jsondir:
 
         Jsondir.create_config_dir(self)
 
-        if not userOrCode:
+        if not user_or_code:
             user()
 
 
@@ -153,7 +156,7 @@ class JsonSave:
     """
 
     def __init__(self):
-        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs',".CNCDirCheckingProgram"))
+        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs', ".CNCDirCheckingProgram"))
         self.file_path = os.path.join(self.CONFIG_DIR, "SaveDataFile.json")
         self.data = {}
 
@@ -180,35 +183,28 @@ class JsonSave:
         except (json.JSONDecodeError, FileNotFoundError):
             print("JsonSave файл пуст")
 
-    def setJson(self, file_path):
+    def set_json(self, file_path):
         """
         Обновляет self.data, устанавливая для каждой папки (ДСЕ) дату последнего изменения файла.
         :param file_path: полный путь к файлу
         """
-        # Получаем компоненты пути
         machine = os.path.basename(os.path.dirname(os.path.dirname(file_path)))
         dse_name = os.path.basename(file_path)
 
-        # Получаем дату изменения файла
         modification_time = os.path.getmtime(file_path)
         file_date = datetime.fromtimestamp(modification_time)
 
-        # Форматируем дату как строку (чтобы можно было сохранить в JSON)
-        # Можно использовать: "2025-04-05 14:30:00" или ISO: "2025-04-05T14:30:00"
-        date_str = file_date.strftime("%Y-%m-%d %H:%M:%S")  # или file_date.isoformat()
+        date_str = file_date.strftime("%Y-%m-%d %H:%M:%S")
 
-        # Создаём структуру: self.data[станок][дсе] = дата
         if machine not in self.data:
             self.data[machine] = {}
 
-        # Перезаписываем дату для этой папки (ДСЕ)
-        # Если файлов несколько — сохранится дата от последнего (или можно сравнивать, см. ниже)
         self.data[machine][dse_name] = date_str
 
-        # Сохраняем состояние
         self.save()
 
-    def getDate(self, file_path):
+    @staticmethod
+    def get_date(file_path):
         """
         Функция для получения даты если она есть, если нет то возрващает None
         :param file_path: Полная ссылка на файл
@@ -216,7 +212,7 @@ class JsonSave:
         """
         machine = os.path.basename(os.path.dirname(os.path.dirname(file_path)))
         dse_name = os.path.basename(file_path)
-        print(machine,"|",dse_name)
+        return [machine, dse_name]
 
 
 class JsonConfig:
@@ -225,7 +221,7 @@ class JsonConfig:
     """
 
     def __init__(self):
-        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs',".CNCDirCheckingProgram"))
+        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), os.path.join('configs', ".CNCDirCheckingProgram"))
         self.file_path = os.path.join(self.CONFIG_DIR, "Config_BdCncProgram.json")
         self.data = config_programm
         self._ensure_file_exists()
@@ -235,6 +231,7 @@ class JsonConfig:
         """Сохраняет текущие данные в файл."""
         with open(self.file_path, 'w', encoding='utf-8') as f:
             json.dump(self.data, f, indent=4)
+
     def return_file_path(self):
         return self.file_path
 
@@ -253,56 +250,55 @@ class JsonConfig:
         except (json.JSONDecodeError, FileNotFoundError):
             self.data = config_programm
 
-    def save(self):
+    def save_data(self):
         """Сохраняет текущие данные в файл."""
         with open(self.file_path, 'w', encoding='utf-8') as f:
             json.dump(self.data, f, indent=4)
 
     # Set
-    def setName(self, name):
+    def set_name(self, name):
         self.data["Name Program"] = name
-        self.save()
+        self.save_data()
 
-    def setNameAutomaticallyFile(self, name):
+    def set_name_automatically_file(self, name):
         self.data["Name ouput automaticallyFile"] = name
-        self.setPathAutomaticallyFile(name)
+        self.set_path_automatically_file(name)
 
-    def setPathAutomaticallyFile(self, file_name):
+    def set_path_automatically_file(self, file_name):
         """На вход имя файла"""
         self.data["Path for output automaticallyFile"] = os.getcwd() + file_name
-        self.save()
+        self.save_data()
 
-    def setGui(self, boolGuiProg):
-        self.data["Run with GUI"] = bool(boolGuiProg)
-        self.save()
+    def set_gui(self, bool_gui_prog):
+        self.data["Run with GUI"] = bool(bool_gui_prog)
+        self.save_data()
 
-    def setAutomatically(self, boolautomaticallyProg):
-        self.data["Run automatically"] = bool(boolautomaticallyProg)
-        self.save()
+    def set_automatically(self, boolautomatically_prog):
+        self.data["Run automatically"] = bool(boolautomatically_prog)
+        self.save_data()
 
-    def setDaateAutomatically(self):
+    def set_daate_automatically(self):
         self.data["last time use automatically search"] = f"{datetime.now()}"
-        self.save()
+        self.save_data()
 
     # Get
-    def getName(self):
+    def get_name(self):
         return self.data.get("Name Program", "")
 
-    def getNameAutomaticallyFile(self):
+    def get_name_automatically_file(self):
         return self.data.get("Name ouput automaticallyFile", "")
 
-    def getPathAutomaticallyFile(self):
+    def get_path_automatically_file(self):
         return self.data.get("Path for output automaticallyFile", "")
 
-    def getGui(self):
+    def get_gui(self):
         return self.data.get("Run with GUI", "")
 
-    def getAutomatically(self):
+    def get_automatically(self):
         return self.data.get("Run automatically", "")
 
-    def getLsatDateAutomatically(self):
+    def get_lsat_date_automatically(self):
         return self.data.get("last time use automatically search", "")
-
 
 # if __name__ == "__main__":
 #     run = JsonConfig()

@@ -3,7 +3,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from scr.assets_database.json_database.receiver_db import ReceiverDataBase
+from scr.assets_database.json_database.receiver_json_database import ReceiverDataBase
 
 
 class DatabaseProgrammData:
@@ -41,7 +41,6 @@ class DatabaseProgrammData:
         data_program = self.get_all_db_program()
         if name_machine_directory in self.data_base.data[self.name_dict].keys():
             data_database_machine_directory = self.data_base.data[self.name_dict][name_machine_directory]
-            # print(data_database_machine_directory)
             if dse_directory in data_database_machine_directory.keys():
                 data_in_database_dse = data_database_machine_directory[dse_directory]
                 if dse_name in data_in_database_dse.keys():
@@ -126,6 +125,6 @@ if __name__ == "__main__":
     print('---------------------------------------------------')
     print(app.get_all_db_program())
     print('---------------------------------------------------')
-    for i, l in app.get_all_db_program().items():
-        for j, k in l.items():
-            print(i, j, k)
+    # for i, l in app.get_all_db_program().items():
+    #     for j, k in l.items():
+    #         print(i, j, k)
