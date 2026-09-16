@@ -4,5 +4,6 @@ config_programm = {
     "Path for output automaticallyFile": "",
     "Run with GUI": True,
     "Run automatically": False,
-    "last time use automatically search": "2025-08-13 15:05:22.491983"
+    "last time use automatically search": "2025-08-13 15:05:22.491983",
+    'name table database':'cnc data machine'
 }

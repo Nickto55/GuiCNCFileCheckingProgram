@@ -3,8 +3,9 @@ from scr.assets_database.sqlite_database.receiver_sqlite_database import Receive
 
 class SQLiteDatabaseProgrammData:
     def __init__(self):
-        self.data_base = ReceiverDataBase()
-        self.name_dict = 'program data'
+        self.name_dict = 'cnc_data_machine'
+
+        self.data_base = ReceiverDataBase(name_tabel=self.name_dict)
 
     def get_all_db_program(self):
         """

@@ -1,19 +1,22 @@
 import os
 import sqlite3
-import shutil
+
+import pandas as pd
 
 
 class ReceiverDataBase:
-    def __init__(self, name_file_db=None):
-        self.name_programm_config_dir = ".CNCDirCheckingProgram"
-        self.name_work_dir = 'configs'
+    def __init__(self, name_file_db=None, name_tabel=None):
+        # name_programm_config_dir = ".CNCDirCheckingProgram"
+        # name_work_dir = 'configs'
+        self.name_tabel = name_tabel if not pd.isna(name_tabel) or name_tabel == '' else 'NO_NAME_TABEL'
 
-        self.name_work_file = name_file_db if name_file_db is not None else 'database.db'
+        name_work_file = name_file_db if name_file_db is not None else 'summary_table_of_milling_machines.db'
 
-        self.CONFIG_DIR = os.path.join(os.path.expanduser("~"), self.name_work_dir, self.name_programm_config_dir)
-        self.file_path = os.path.join(self.CONFIG_DIR, self.name_work_file)
+        # self.config_dir = os.path.join(os.path.expanduser("~"), name_work_dir, name_programm_config_dir)
+        config_dir = r'\\volna.dmn\data\obmen\Служба Главного инженера\ОГТ\ЧПУ\Программы Python\database_program'
+        self.file_path = os.path.join(config_dir, name_work_file)
 
-        os.makedirs(self.CONFIG_DIR, exist_ok=True)
+        os.makedirs(config_dir, exist_ok=True)
 
         self.conn = sqlite3.connect(self.file_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
@@ -23,8 +26,8 @@ class ReceiverDataBase:
 
     def _create_table(self):
         """Создает таблицу, если её нет."""
-        self.cur.execute('''
-            CREATE TABLE IF NOT EXISTS program_data (
+        self.cur.execute(f'''
+            CREATE TABLE IF NOT EXISTS {self.name_tabel} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name_machine_directory TEXT NOT NULL,
                 dse_directory TEXT NOT NULL,
@@ -39,8 +42,8 @@ class ReceiverDataBase:
             )
         ''')
         # Создаем индексы для ускорения поиска
-        self.cur.execute('CREATE INDEX IF NOT EXISTS idx_machine ON program_data(name_machine_directory)')
-        self.cur.execute('CREATE INDEX IF NOT EXISTS idx_dse_name ON program_data(dse_name)')
+        self.cur.execute(f'CREATE INDEX IF NOT EXISTS idx_machine ON {self.name_tabel}(name_machine_directory)')
+        self.cur.execute(f'CREATE INDEX IF NOT EXISTS idx_dse_name ON {self.name_tabel}(dse_name)')
         self.conn.commit()
 
     def save(self):
@@ -53,12 +56,12 @@ class ReceiverDataBase:
 
     def get_all_rows(self):
         """Получить все записи из БД (сырой список)."""
-        self.cur.execute("SELECT * FROM program_data")
+        self.cur.execute(f"SELECT * FROM {self.name_tabel}")
         return self.cur.fetchall()
 
     def get_rows_by_dse_name(self, repository_name):
         """Быстрый поиск по имени DSE."""
-        self.cur.execute("SELECT * FROM program_data WHERE dse_name = ?", (repository_name,))
+        self.cur.execute(f"SELECT * FROM {self.name_tabel} WHERE dse_name = ?", (repository_name,))
         return self.cur.fetchall()
 
     def upsert_program_data(self, name_machine_directory, dse_directory, dse_name,
@@ -68,8 +71,8 @@ class ReceiverDataBase:
         Вставка или обновление записи (UPSERT).
         Если такая комбинация machine/dse_dir/dse_name уже есть - обновит. Если нет - создаст.
         """
-        query = '''
-            INSERT INTO program_data 
+        query = f'''
+            INSERT INTO {self.name_tabel} 
             (name_machine_directory, dse_directory, dse_name, content, link, fm_file, 
              files_without_extension, last_modified_date, kb)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
